@@ -1,0 +1,7 @@
+dateparser
+requests
+websocket-client==0.54.0
+python-dotenv
+numpy
+raven==6.9.0
+delta_rest_client

@@ -1,0 +1,8 @@
+def has_15_minutes_passed(self, given_timestamp):
+        current_timestamp = int(time.time())
+        print(f"The Current Time : {current_timestamp}" )
+        given_timestamp_seconds = given_timestamp / 1000000
+        print(given_timestamp)
+        difference = current_timestamp - given_timestamp_seconds
+        print(f"The difference {difference}")
+        return difference >= 60 #900  # 15 minutes in seconds

@@ -6,8 +6,8 @@ import datetime
 import json
 from delta_rest_client import DeltaRestClient
 
-api_key = 'lbTYnaMuUuDRdgqhRqaw7tcqbK1ReU'
-api_secret = 'SNYGrzuvZYFMKeTbvAiHddBrL4PIQMmDockvMHKzIWjtOgjcynaCNXtBXMHl'
+api_key = 'VraFQTfHWk1w7Id1uC1pJvyKQ5AWy5'
+api_secret = 'XJofp39iR4p7092qkzJdH9VPmoZmHtWv2x0huuJWscPerHtGqcf2Uo996JMj'
 
 def generate_signature(secret, message):
     message = bytes(message, 'utf-8')

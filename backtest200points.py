@@ -73,35 +73,42 @@ df['upper'], df['middleband'], df['lower'] = abstract.BBANDS(df['close'], timepe
 df ['EMA'] =abstract.EMA(df.close, timeperiod = 5)
 df ['crossup'] = df['crossdown'] = 0
 
+print(df)
+open_price = 0
+difference = abs(open_price - df['close'] )
 for i in range(15,len(df)) :
      if df['middleband'][i - 1] <= df['EMA'][i - 1] and df['middleband'][i] > df['EMA'][i]:
         df.at[i, 'crossup'] = 1
-     elif df['middleband'][i - 1] >= df['EMA'][i - 1] and df['middleband'][i] < df['EMA'][i]:
-        df.at[i, 'crossdown'] = 1
-filtered_data = df[(df['crossup'] == 1) | (df['crossdown'] == 1)]
+        open_price = df.open
+        print(open_price)
+     elif difference == 200:
+         print(difference)
 
-for i in range(50, len(df)):
-    if df['middleband'][i - 1] <= df['EMA'][i - 1] and df['middleband'][i] > df['EMA'][i]:
-        df.at[i, 'Signal'] = 'BUY'
-    elif df['middleband'][i - 1] >= df['EMA'][i - 1] and df['middleband'][i] < df['EMA'][i]:
-        df.at[i, 'Signal'] = 'SELL'
+#         df.at[i, 'crossdown'] = 1
+# filtered_data = df[(df['crossup'] == 1) | (df['crossdown'] == 1)]
 
-filtered_data = df[df['Signal'].notnull()]
-filtered_data.set_index('time', inplace = True)
-# backtest_data=filtered_data[(filtered_data.index >= filtered_data[filtered_data['Signal']=='BUY'].index[0]) & (filtered_data.index <= filtered_data[filtered_data['Signal']=='SELL'].index[-1])]
-print(filtered_data)
+# for i in range(50, len(df)):
+#     if df['middleband'][i - 1] <= df['EMA'][i - 1] and df['middleband'][i] > df['EMA'][i]:
+#         df.at[i, 'Signal'] = 'BUY'
+#     elif df['middleband'][i - 1] >= df['EMA'][i - 1] and df['middleband'][i] < df['EMA'][i]:
+#         df.at[i, 'Signal'] = 'SELL'
 
-bt = BackTest()
-capital = 50000
-for index, data in filtered_data.iterrows():
-    if data.Signal == 'BUY':
-        qty = capital // data.open
-        bt.buy('BTCUSDT', index, data.open, qty)
-    else:
-        bt.sell(index, data.open, 'Exit', 0)
+# filtered_data = df[df['Signal'].notnull()]
+# filtered_data.set_index('time', inplace = True)
+# # backtest_data=filtered_data[(filtered_data.index >= filtered_data[filtered_data['Signal']=='BUY'].index[0]) & (filtered_data.index <= filtered_data[filtered_data['Signal']=='SELL'].index[-1])]
+# print(filtered_data)
 
-print(bt.stats())
+# bt = BackTest()
+# capital = 50000
+# for index, data in filtered_data.iterrows():
+#     if data.Signal == 'BUY':
+#         qty = capital // data.open
+#         bt.buy('BTCUSDT', index, data.open, qty)
+#     else:
+#         bt.sell(index, data.open, 'Exit', 0)
+
+# print(bt.stats())
 
 
-df = pd.DataFrame(bt.backtesting)
-df.to_excel('output.xlsx', index=False)
+# df = pd.DataFrame(bt.backtesting)
+# df.to_excel('output.xlsx', index=False)

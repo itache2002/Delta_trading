@@ -112,7 +112,7 @@ class Delat():
         if price:
             params["limit_price"] = str(price)
 
-        payload = json.dumps(params).replace(' ', '')
+        payload = json.dumps(params).replace('','')
         signature, timestamp = self.Place_generate_signature(method, endpoint, payload)
 
         headers = {

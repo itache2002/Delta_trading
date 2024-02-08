@@ -188,26 +188,38 @@ class Delat():
 
 
     def Update_data(self,data):
+        if data['close'] is None or data['candle_start_time'] is None:
+            print("Warning: close or candle_start_time value is None. Skipping Update_data.")
+            return
+
         self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0)
-        self.historydf ['EMA'] =abstract.EMA(self.historydf['close'], timeperiod = 5)
-        self.historydf ['crossup'] = self.historydf['crossdown'] = 0
+        self.historydf['EMA'] = abstract.EMA(self.historydf['close'], timeperiod=5)
+        self.historydf['crossup'] = self.historydf['crossdown'] = 0
+
         start_time = data['candle_start_time']
-        open_data= float(data['open'])
-        close_data  = float(data['close'])
-        high_data  = float(data['high'])
+        open_data = float(data['open'])
+        close_data = float(data['close'])
+        high_data = float(data['high'])
         low_data = float(data['low'])
-        volume_data  = float(data['volume']) 
+        volume_data = float(data['volume'])
+
+        if np.isnan(close_data):  # Check if close_data is NaN
+            print("Warning: close_data is NaN. Skipping Update_data.")
+            return
+
         new_df = pd.DataFrame({
-                'time':[pd.to_datetime(start_time/1000000, unit='s')],
-                'open':[open_data],
-                'close':[close_data],
-                'high':[high_data],
-                'low':[low_data],
-                'volume':[volume_data]
-                })
-        self.historydf = pd.concat([self.historydf,new_df],ignore_index=True)
-        self.historydf['EMA'] = abstract.EMA(self.historydf['close'],timeperiod = 5)
-        self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0)
+            'time': [pd.to_datetime(start_time / 1000000, unit='s')],
+            'open': [open_data],
+            'close': [close_data],
+            'high': [high_data],
+            'low': [low_data],
+            'volume': [volume_data]
+        })
+
+        self.historydf = pd.concat([self.historydf, new_df], ignore_index=True)
+        self.historydf['EMA'] = abstract.EMA(self.historydf['close'], timeperiod=5)
+        self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = abstract.BBANDS(
+            self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0)
         self.historydf['crossup'] = self.historydf['crossdown'] = 0
 
         self.Strategy()

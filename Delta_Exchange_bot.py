@@ -3,7 +3,6 @@ import pandas as pd
 import websocket
 import datetime
 import json
-from delta_rest_client import DeltaRestClient, create_order_format, round_by_tick_size, cancel_order_format, OrderType
 from talib import abstract
 import hashlib
 import hmac
@@ -11,7 +10,7 @@ import base64
 import numpy as np
 import time
 from openpyxl import Workbook, load_workbook
-import datetime
+
 
 class Delat():
     def __init__(self,api_key, api_secret,lev,symbol):
@@ -48,7 +47,7 @@ class Delat():
             'start':yesterday_timestamp_int, 
             'end': today_timestamp_int   
         }
-        print(today_timestamp_int)
+
 
 
         r = requests.get('https://api.delta.exchange/v2/history/candles', params=params, headers=self.headers)
@@ -156,19 +155,18 @@ class Delat():
         current_price = int(tail_1['close'].iloc[0])
         time_stamp = tail_1['time'].iloc[0]
 
-
         # crossup Strategy
         if (tail_2['middleband'].iloc[0] <= tail_2['EMA'].iloc[0]) and (tail_1['middleband'].iloc[0] > tail_1['EMA'].iloc[0]):
-            self.historydf.at[tail_1.index, 'crossup'] = int(1)
-            self.entry = tail_1['close'].iloc[0]
+            # self.historydf.at[tail_1.index, 'crossup'] = 1
+            self.entry = float(tail_1['close'].iloc[0])
             self.stoploss= int(self.entry  - 100)
             self.takeprofit = int(self.entry + 200)
             self.exit = self.stoploss
 
          # crossdown Strategy    
         elif (tail_2['middleband'].iloc[0] >= tail_2['EMA'].iloc[0]) and (tail_1['middleband'].iloc[0] < tail_1['EMA'].iloc[0]):
-            self.historydf.at[tail_1.index, 'crossdown'] = int(1)
-            self.entry = tail_1['close'].iloc[0]
+            # self.historydf.at[tail_1.index, 'crossdown'] = 1
+            self.entry = float(tail_1['close'].iloc[0])
             self.stoploss= int(self.entry  + 100)
             self.takeprofit = int(self.entry - 200)
             self.exit = self.stoploss
@@ -211,7 +209,7 @@ class Delat():
         self.historydf['EMA'] = abstract.EMA(self.historydf['close'],timeperiod = 5)
         self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0)
         self.historydf['crossup'] = self.historydf['crossdown'] = 0
-        # print(self.historydf.tail(1))
+
         self.Strategy()
 
 
@@ -247,9 +245,8 @@ class Delat():
         # Subscribe to channels
         ''' 
         if u want to chang the candle_stick time u can  change candlestick_1m for example:
-        you want to 15min time frame  u chang it to candlestick_15m
+        you want to 15min time framse  u chang it to candlestick_15m
         '''
-
         subscribe_msg = {
             "type": "subscribe",
             "payload": {

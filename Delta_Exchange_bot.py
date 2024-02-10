@@ -31,21 +31,14 @@ class Delat():
 
 
     def History(self):
-        today = datetime.date.today()
-        yesterday = today - datetime.timedelta(days=1)
-        today_datetime = datetime.datetime.combine(today, datetime.datetime.min.time())
-        yesterday_datetime = datetime.datetime.combine(yesterday, datetime.datetime.min.time())
-
-        today_timestamp = datetime.datetime.timestamp(today_datetime)
-        yesterday_timestamp = datetime.datetime.timestamp(yesterday_datetime)
-        today_timestamp_int = int(today_timestamp)
-        yesterday_timestamp_int = int(yesterday_timestamp)
+        current_timestamp = int(datetime.datetime.now().timestamp())
+        last_100_candel = current_timestamp - 90000
 
         params = {
-            'resolution': '1m',
+            'resolution': '15m',
             'symbol': 'BTCUSDT',
-            'start':yesterday_timestamp_int, 
-            'end': today_timestamp_int   
+            'start':last_100_candel, 
+            'end': current_timestamp   
         }
 
 
@@ -128,18 +121,18 @@ class Delat():
     
 
 
-    def add_to_excel(self , timestamp ,entry_price, exit_price, stop_loss, take_profit,Type):
+    def add_to_excel(self , timestamp ,entry_price, exit_price, stop_loss, take_profit):
         try:
               wb = load_workbook('BUY.xlsx')
               sheet = wb.active
         except FileNotFoundError:
               wb = Workbook()
               sheet = wb.active
-              sheet.append(['Entry Time', 'Entry Price', 'Exit Price','stop_loss','take_profit','Type'])
+              sheet.append(['Entry Time', 'Entry Price', 'Exit Price','stop_loss','take_profit'])
 
         for row in sheet.iter_rows(min_row=2, max_col=7):
             existing_entry = [cell.value for cell in row]
-            new_entry = [entry_price, exit_price, stop_loss, take_profit,Type]
+            new_entry = [entry_price, exit_price, stop_loss, take_profit]
 
             if existing_entry[1:] == new_entry:
                 print("Duplicate entry found. Exiting without adding.")
@@ -156,20 +149,44 @@ class Delat():
         time_stamp = tail_1['time'].iloc[0]
 
         # crossup Strategy
-        if (tail_2['middleband'].iloc[0] <= tail_2['EMA'].iloc[0]) and (tail_1['middleband'].iloc[0] > tail_1['EMA'].iloc[0]):
+        if (tail_2['middleband'].iloc[0] < tail_2['EMA'].iloc[0]) and (tail_1['middleband'].iloc[0] > tail_1['EMA'].iloc[0]):
             # self.historydf.at[tail_1.index, 'crossup'] = 1
+
+            print("##################")
+            print(" BUY Signal ")
+            print("##################")
             self.entry = float(tail_1['close'].iloc[0])
             self.stoploss= int(self.entry  - 100)
             self.takeprofit = int(self.entry + 200)
             self.exit = self.stoploss
+            print(f"The current timestamp{time_stamp}")
+            print(f"The entry price is {self.entry}")
+            print(f"The  price is exit  {self.exit }")
+            print(f"The stoploss price is {self.stoploss}")
+            print(f"The EMA :{tail_1['EMA'].iloc[0]}")
+            print(f"The Previous EMA :{tail_2['EMA'].iloc[0]}")
+            print(f"The middelband :{tail_1['middleband'].iloc[0]}")
+            print(f"The Previous middelband :{tail_2['middleband'].iloc[0]}")
 
          # crossdown Strategy    
-        elif (tail_2['middleband'].iloc[0] >= tail_2['EMA'].iloc[0]) and (tail_1['middleband'].iloc[0] < tail_1['EMA'].iloc[0]):
+        elif (tail_2['middleband'].iloc[0] > tail_2['EMA'].iloc[0]) and (tail_1['middleband'].iloc[0] < tail_1['EMA'].iloc[0]):
             # self.historydf.at[tail_1.index, 'crossdown'] = 1
+
+            print("##################")
+            print(" SELL Signal ")
+            print("##################")
             self.entry = float(tail_1['close'].iloc[0])
             self.stoploss= int(self.entry  + 100)
             self.takeprofit = int(self.entry - 200)
             self.exit = self.stoploss
+            print(f"The current timestamp{time_stamp}")
+            print(f"The entry price is {self.entry}")
+            print(f"The  price is exit  {self.exit }")
+            print(f"The stoploss price is {self.stoploss}")
+            print(f"The EMA :{tail_1['EMA'].iloc[0]}")
+            print(f"The Previous EMA :{tail_2['EMA'].iloc[0]}")
+            print(f"The middelband :{tail_1['middleband'].iloc[0]}")
+            print(f"The Previous middelband :{tail_2['middleband'].iloc[0]}")
 
         if current_price == self.stoploss:
             print("The trade ended  with a loss")
@@ -192,8 +209,8 @@ class Delat():
             print("Warning: close or candle_start_time value is None. Skipping Update_data.")
             return
 
-        self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0)
-        self.historydf['EMA'] = abstract.EMA(self.historydf['close'], timeperiod=5)
+        self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0),1)
+        self.historydf['EMA'] =np.round(abstract.EMA(self.historydf['close'], 5),1)
         self.historydf['crossup'] = self.historydf['crossdown'] = 0
 
         start_time = data['candle_start_time']
@@ -217,10 +234,10 @@ class Delat():
         })
 
         self.historydf = pd.concat([self.historydf, new_df], ignore_index=True)
-        self.historydf['EMA'] = abstract.EMA(self.historydf['close'], timeperiod=5)
-        self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = abstract.BBANDS(
-            self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0)
-        self.historydf['crossup'] = self.historydf['crossdown'] = 0
+        self.historydf['EMA'] = np.round(abstract.EMA(self.historydf['close'],5),1)
+        self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=0.0, matype=0),1)
+
+        # print(self.historydf)
 
         self.Strategy()
 
@@ -263,7 +280,7 @@ class Delat():
             "type": "subscribe",
             "payload": {
                 "channels": [
-                    {"name": "candlestick_1m", "symbols": ['BTCUSDT']},
+                    {"name": "candlestick_15m", "symbols": ['BTCUSDT']},
                 ]
             }
         }

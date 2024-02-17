@@ -53,7 +53,7 @@ def on_open(ws):
         "type": "subscribe",
         "payload": {
             "channels": [
-                {"name": "candlestick_1m", "symbols": ['BTCUSDT']},
+                {"name": "candlestick_15m", "symbols": ['BTCUSDT']},
             ]
         }
     }

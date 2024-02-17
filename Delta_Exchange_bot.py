@@ -6,14 +6,12 @@ import json
 from talib import abstract
 import hashlib
 import hmac
-import base64
 import numpy as np
-import time
 from openpyxl import Workbook, load_workbook
 
 
 class Delat():
-    def __init__(self,api_key, api_secret,lev,symbol):
+    def __init__(self,api_key, api_secret,lev):
         self.api_key = api_key
         self.api_secret = api_secret
         self.leverage = lev
@@ -23,7 +21,6 @@ class Delat():
         self.headers = {'Accept': 'application/json'}
         self.historydf = None
         self.update_data_df= None
-        self.symbol = symbol
         self.entry = 0
         self.exit = 0
         self.stoploss= 0
@@ -41,8 +38,6 @@ class Delat():
             'end': current_timestamp   
         }
 
-
-
         r = requests.get('https://api.delta.exchange/v2/history/candles', params=params, headers=self.headers)
         if r.status_code == 200:
             json_data = r.json()
@@ -50,6 +45,10 @@ class Delat():
             df['time'] = pd.to_datetime(df['time'], unit='s')  
             df['time'] = df['time'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.strftime('%Y-%m-%d %H:%M:%S')
             self.historydf = df
+            self.historydf = self.historydf.iloc[::-1].reset_index(drop=True)
+            self.historydf = self.historydf.drop(self.historydf.index[-1])
+            self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0),1)
+            self.historydf['EMA'] =np.round(abstract.EMA(self.historydf['close'], 5),1)
         else:
             print(f"Failed to fetch data. Status code: {r.status_code}")
 
@@ -150,8 +149,6 @@ class Delat():
 
         # crossup Strategy
         if (tail_2['middleband'].iloc[0] < tail_2['EMA'].iloc[0]) and (tail_1['middleband'].iloc[0] > tail_1['EMA'].iloc[0]):
-            # self.historydf.at[tail_1.index, 'crossup'] = 1
-
             print("##################")
             print(" BUY Signal ")
             print("##################")
@@ -170,8 +167,6 @@ class Delat():
 
          # crossdown Strategy    
         elif (tail_2['middleband'].iloc[0] > tail_2['EMA'].iloc[0]) and (tail_1['middleband'].iloc[0] < tail_1['EMA'].iloc[0]):
-            # self.historydf.at[tail_1.index, 'crossdown'] = 1
-
             print("##################")
             print(" SELL Signal ")
             print("##################")
@@ -201,18 +196,13 @@ class Delat():
             self.exit = self.takeprofit
             #add the data to excel 
             self.add_to_excel(time_stamp,self.entry,self.exit,self.stoploss,self.takeprofit)
-       
+        
 
 
     def Update_data(self,data):
         if data['close'] is None or data['candle_start_time'] is None:
             print("Warning: close or candle_start_time value is None. Skipping Update_data.")
             return
-
-        self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0),1)
-        self.historydf['EMA'] =np.round(abstract.EMA(self.historydf['close'], 5),1)
-        self.historydf['crossup'] = self.historydf['crossdown'] = 0
-
         start_time = data['candle_start_time']
         open_data = float(data['open'])
         close_data = float(data['close'])
@@ -238,7 +228,6 @@ class Delat():
         self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=0.0, matype=0),1)
 
         # print(self.historydf)
-
         self.Strategy()
 
 
@@ -275,6 +264,7 @@ class Delat():
         ''' 
         if u want to chang the candle_stick time u can  change candlestick_1m for example:
         you want to 15min time framse  u chang it to candlestick_15m
+
         '''
         subscribe_msg = {
             "type": "subscribe",
@@ -288,16 +278,16 @@ class Delat():
 
 
     def live_data(self):
-        ws = websocket.WebSocketApp('wss://socket.delta.exchange', on_open=self.on_open, on_message=self.on_message, on_error=self.on_error, on_close=self.on_close)
-        ws.run_forever()
+      ws = websocket.WebSocketApp('wss://socket.delta.exchange', on_open=self.on_open, on_message=self.on_message, on_error=self.on_error, on_close=self.on_close)
+      ws.run_forever()
+
+api_key = 'VraFQTfHWk1w7Id1uC1pJvyKQ5AWy5'
+api_secret = 'XJofp39iR4p7092qkzJdH9VPmoZmHtWv2x0huuJWscPerHtGqcf2Uo996JMj'
 
 
-api_key='VraFQTfHWk1w7Id1uC1pJvyKQ5AWy5',
-api_secret='XJofp39iR4p7092qkzJdH9VPmoZmHtWv2x0huuJWscPerHtGqcf2Uo996JMj'
-
-delta = Delat(api_key, api_secret , 25, 'BTCUSDT')
+delta = Delat(api_key,api_secret,25)
 
 delta.History()
 delta.live_data()
 # delta.get_product_id('BTCUSDT')
-# delta.has_15_minutes_passed(1707225860820)
+# delta.has_15_minutes_passed(1708197060000000)

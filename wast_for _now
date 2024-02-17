@@ -6,3 +6,10 @@ def has_15_minutes_passed(self, given_timestamp):
         difference = current_timestamp - given_timestamp_seconds
         print(f"The difference {difference}")
         return difference >= 60 #900  # 15 minutes in seconds
+
+
+def has_15_minutes_passed(self,start_time):
+        timestamp_to_sec= start_time/ 1_000_000
+        timestamp_datetime = datetime.utcfromtimestamp(timestamp_to_sec)
+        timestamp_datetime_15_min_later = timestamp_datetime + timedelta(minutes=15)
+        print(timestamp_to_sec)

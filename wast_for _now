@@ -13,3 +13,41 @@ def has_15_minutes_passed(self,start_time):
         timestamp_datetime = datetime.utcfromtimestamp(timestamp_to_sec)
         timestamp_datetime_15_min_later = timestamp_datetime + timedelta(minutes=15)
         print(timestamp_to_sec)
+
+
+
+
+            print("##################")
+            print(" BUY Signal ")
+            print("##################")
+            self.entry = float(tail_1['close'].iloc[0])
+            self.stoploss= int(self.entry  - 100)
+            self.takeprofit = int(self.entry + 200)
+            self.exit = self.stoploss
+            print(f"The current timestamp{time_stamp}")
+            print(f"The entry price is {self.entry}")
+            print(f"The  price is exit  {self.exit }")
+            print(f"The stoploss price is {self.stoploss}")
+            print(f"The EMA :{tail_1['EMA'].iloc[0]}")
+            print(f"The Previous EMA :{tail_2['EMA'].iloc[0]}")
+            print(f"The middelband :{tail_1['middleband'].iloc[0]}")
+            print(f"The Previous middelband :{tail_2['middleband'].iloc[0]}")
+        
+
+
+
+            print("##################")
+            print(" SELL Signal ")
+            print("##################")
+            self.entry = float(tail_1['close'].iloc[0])
+            self.stoploss= int(self.entry  + 100)
+            self.takeprofit = int(self.entry - 200)
+            self.exit = self.stoploss
+            print(f"The current timestamp{time_stamp}")
+            print(f"The entry price is {self.entry}")
+            print(f"The  price is exit  {self.exit }")
+            print(f"The stoploss price is {self.stoploss}")
+            print(f"The EMA :{tail_1['EMA'].iloc[0]}")
+            print(f"The Previous EMA :{tail_2['EMA'].iloc[0]}")
+            print(f"The middelband :{tail_1['middleband'].iloc[0]}")
+            print(f"The Previous middelband :{tail_2['middleband'].iloc[0]}")

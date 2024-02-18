@@ -33,7 +33,7 @@ class Delat():
         last_100_candel = current_timestamp - 90000
 
         params = {
-            'resolution': '15m',
+            'resolution': '1m',
             'symbol': 'BTCUSDT',
             'start':last_100_candel, 
             'end': current_timestamp   
@@ -145,8 +145,8 @@ class Delat():
     def Strategy(self,start_time,open_data,close_data,high_data,low_data):
         current_price = int(close_data)
         # Check for crossover and crossunder
-        crossover = (self.historydf['EMA'].iloc[-2] < self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] > self.historydf['middleband'].iloc[-1])
-        crossunder = (self.historydf['EMA'].iloc[-2] > self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] < self.historydf['middleband'].iloc[-1])
+        crossover = (self.historydf['EMA'].iloc[-2] <= self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] > self.historydf['middleband'].iloc[-1]) (self.historydf['EMA'].iloc[-1] == self.historydf['middleband'].iloc[-1])  
+        crossunder = (self.historydf['EMA'].iloc[-2] >= self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] < self.historydf['middleband'].iloc[-1]) and (self.historydf['EMA'].iloc[-1] == self.historydf['middleband'].iloc[-1]) 
         
         if crossover:   
             print("##################")
@@ -293,7 +293,7 @@ class Delat():
             "type": "subscribe",
             "payload": {
                 "channels": [
-                    {"name": "candlestick_15m", "symbols": ['BTCUSDT']},
+                    {"name": "candlestick_1m", "symbols": ['BTCUSDT']},
                 ]
             }
         }

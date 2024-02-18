@@ -149,12 +149,8 @@ class Delat():
         time_stamp = tail_1['time'].iloc[0]
         
 
- 
-        if (self.historydf['EMA'][len(self.historydf.index)-3] < self.historydf['middleband'][len(self.historydf.index)-3]) and (self.historydf['EMA'][len(self.historydf.index)-2] > self.historydf['middleband'][len(self.historydf.index)-2]):
-            self.crossover = True
-
         # crossup Strategy
-        if (self.historydf['EMA'].iloc[-2] < self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] > self.historydf['middleband'].iloc[-1]):
+        if (self.historydf['EMA'].iloc[-2] < self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] > self.historydf['middleband'].iloc[-1])and (self.historydf['EMA'].iloc[-1] == self.historydf['middleband'].iloc[-1]) :
             print("##################")
             print(" BUY Signal ")
             print("##################")
@@ -172,7 +168,7 @@ class Delat():
             print(f"The Previous middelband :{tail_2['middleband'].iloc[0]}")
 
          # crossdown Strategy    
-        if (self.historydf['EMA'].iloc[-2] > self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] < self.historydf['middleband'].iloc[-1]):
+        if (self.historydf['EMA'].iloc[-2] > self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] < self.historydf['middleband'].iloc[-1]) and (self.historydf['EMA'].iloc[-1] == self.historydf['middleband'].iloc[-1]) :
             print("##################")
             print(" SELL Signal ")
             print("##################")

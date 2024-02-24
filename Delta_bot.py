@@ -17,7 +17,7 @@ class Delat():
         self.leverage = lev
         self.EMA = 5
         self.BBL = 15
-        self.BBSD = 3
+        self.BBSD = 3.0
         self.headers = {'Accept': 'application/json'}
         self.historydf = None
         self.update_data_df= None
@@ -26,6 +26,8 @@ class Delat():
         self.stoploss= 0
         self.takeprofit = 0
         self.crossover = False
+        self.Previous= None
+
 
 
     def History(self):
@@ -44,12 +46,14 @@ class Delat():
             json_data = r.json()
             df = pd.DataFrame(json_data['result'])
             df['time'] = pd.to_datetime(df['time'], unit='s')  
-            df['time'] = df['time'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.strftime('%Y-%m-%d %H:%M:%S')
+            # df['time'] = df['time'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.strftime('%Y-%m-%d %H:%M:%S')
             self.historydf = df
             self.historydf = self.historydf.iloc[::-1].reset_index(drop=True)
             self.historydf = self.historydf.drop(self.historydf.index[-1])
             self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0),1)
             self.historydf['EMA'] =np.round(abstract.EMA(self.historydf['close'], 5),1)
+            print(self.historydf)
+
         else:
             print(f"Failed to fetch data. Status code: {r.status_code}")
 
@@ -141,33 +145,38 @@ class Delat():
         sheet.append([timestamp, entry_price, exit_price,stop_loss,take_profit])
         wb.save('BUY.xlsx')
         print("Entry added successfully.")
+        
+
             
     def Strategy(self,start_time,open_data,close_data,high_data,low_data):
         current_price = int(close_data)
-        # Check for crossover and crossunder
-        crossover = (self.historydf['EMA'].iloc[-2] <= self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] > self.historydf['middleband'].iloc[-1]) (self.historydf['EMA'].iloc[-1] == self.historydf['middleband'].iloc[-1])  
-        crossunder = (self.historydf['EMA'].iloc[-2] >= self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] < self.historydf['middleband'].iloc[-1]) and (self.historydf['EMA'].iloc[-1] == self.historydf['middleband'].iloc[-1]) 
-        
-        if crossover:   
+        print(f"The current EMA:{self.historydf['EMA'].iloc[-1]}")
+        print(f"The current price : {current_price}")
+        # crossup Strategy
+        if (self.historydf['EMA'].iloc[-2] < self.historydf['middleband'].iloc[-2]) and (abs(int(self.historydf['middleband'].iloc[-1]) - int(self.historydf['EMA'].iloc[-1])) <= 1) :
             print("##################")
             print(" BUY Signal ")
             print("##################")
-            self.entry = open_data
+            self.entry = float(tail_1['close'].iloc[0])
             self.stoploss= int(self.entry  - 100)
             self.takeprofit = int(self.entry + 200)
             self.exit = self.stoploss
-            print(f"The current timestamp{start_time}")
+            print(f"The current timestamp{time_stamp}")
             print(f"The entry price is {self.entry}")
             print(f"The  price is exit  {self.exit }")
             print(f"The stoploss price is {self.stoploss}")
-        
-        if crossunder:
-            print("Short signal detected")
-            self.entry = open_data
+
+
+         # crossdown Strategy    
+        if (self.historydf['EMA'].iloc[-2] > self.historydf['middleband'].iloc[-2]) and (abs(int(self.historydf['middleband'].iloc[-1]) - int(self.historydf['EMA'].iloc[-1])) <= 1) :
+            print("##################")
+            print(" SELL Signal ")
+            print("##################")
+            self.entry = float(tail_1['close'].iloc[0])
             self.stoploss= int(self.entry  + 100)
             self.takeprofit = int(self.entry - 200)
             self.exit = self.stoploss
-            print(f"The current timestamp{start_time}")
+            print(f"The current timestamp{time_stamp}")
             print(f"The entry price is {self.entry}")
             print(f"The  price is exit  {self.exit }")
             print(f"The stoploss price is {self.stoploss}")
@@ -201,7 +210,7 @@ class Delat():
             open_time_dt = datetime.datetime.utcfromtimestamp(open_time_seconds)
             
             # Add 15 minutes to the opening time
-            close_time_dt = open_time_dt + datetime.timedelta(minutes=15)
+            close_time_dt = open_time_dt + datetime.timedelta(minutes=1)
 
 
             return close_time_dt
@@ -222,6 +231,11 @@ class Delat():
         close = current_time_utc >= candle_close_time
 
         return current_time_utc >= candle_close_time
+    
+    def calculate_ema(self, prices, period):
+        multiplier = 2 / (period + 1)
+        return prices.ewm(alpha=multiplier, adjust=False).mean()
+
 
 
     def Update_data(self,data):
@@ -238,7 +252,8 @@ class Delat():
         if np.isnan(close_data):  # Check if close_data is NaN
             print("Warning: close_data is NaN. Skipping Update_data.")
             return
-        if self.is_candle_closed(start_time):
+        
+        try:
             new_df = pd.DataFrame({
                 'time': [pd.to_datetime(start_time / 1000000, unit='s')],
                 'open': [open_data],
@@ -247,9 +262,26 @@ class Delat():
                 'low': [low_data],
                 'volume': [volume_data]
             })
+            # Use pd.concat to add the new row to the existing DataFrame
             self.historydf = pd.concat([self.historydf, new_df], ignore_index=True)
-            self.historydf['EMA'] = np.round(abstract.EMA(self.historydf['close'], timeperiod=5), 1)
-            self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0), 1)
+
+            # if self.historydf['close'].iloc[-2] != close_data:
+            #     print("True")
+            # self.historydf['EMA'] = np.round(abstract.EMA(self.historydf['close'],5),1)
+            # self.historydf['EMA'] = round(self.historydf['close'].ewm(span=5, adjust=False, min_periods=5).mean(),1)
+            self.historydf['EMA'] = np.round(abstract.EMA(self.historydf['close'],5),1)
+            upper, middle, lower = abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0)
+            # Assign each individually, rounding as necessary
+            self.historydf['upper'] = np.round(upper, 1)
+            self.historydf['middleband'] = np.round(middle, 1)
+            self.historydf['lower'] = np.round(lower, 1)
+            # self.historydf[['upper', 'middleband', 'lower']] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0), 1)
+            self.historydf.to_excel('live-data.xlsx')
+            print(self.historydf)
+        except ValueError as e:
+            print(f"Error converting data types: {e}")
+            return
+
         # print(self.historydf)
         self.Strategy(start_time,open_data,close_data,high_data,low_data)
 
@@ -312,4 +344,3 @@ delta = Delat(api_key,api_secret,25)
 
 delta.History()
 delta.live_data()
-

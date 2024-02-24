@@ -17,7 +17,7 @@ class Delat():
         self.leverage = lev
         self.EMA = 5
         self.BBL = 15
-        self.BBSD = 3
+        self.BBSD = 3.0
         self.headers = {'Accept': 'application/json'}
         self.historydf = None
         self.update_data_df= None
@@ -26,6 +26,9 @@ class Delat():
         self.stoploss= 0
         self.takeprofit = 0
         self.crossover = False
+        self.finaldf=None
+        self.livedf= None
+
 
 
     def History(self):
@@ -33,7 +36,7 @@ class Delat():
         last_100_candel = current_timestamp - 90000
 
         params = {
-            'resolution': '15m',
+            'resolution': '1m',
             'symbol': 'BTCUSDT',
             'start':last_100_candel, 
             'end': current_timestamp   
@@ -44,12 +47,17 @@ class Delat():
             json_data = r.json()
             df = pd.DataFrame(json_data['result'])
             df['time'] = pd.to_datetime(df['time'], unit='s')  
-            df['time'] = df['time'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.strftime('%Y-%m-%d %H:%M:%S')
+            # df['time'] = df['time'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.strftime('%Y-%m-%d %H:%M:%S')
             self.historydf = df
             self.historydf = self.historydf.iloc[::-1].reset_index(drop=True)
-            self.historydf = self.historydf.drop(self.historydf.index[-1])
+            # self.historydf = self.historydf.drop(self.historydf.index[-1])
             self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0),1)
             self.historydf['EMA'] =np.round(abstract.EMA(self.historydf['close'], 5),1)
+            self.finaldf = self.historydf
+            self.livedf = self.historydf
+            # print(self.finaldf)
+
+
         else:
             print(f"Failed to fetch data. Status code: {r.status_code}")
 
@@ -72,10 +80,9 @@ class Delat():
         secret = bytes(self.api_secret, 'utf-8')
         hash = hmac.new(secret, message, hashlib.sha256)
         return hash.hexdigest(), timestamp
-
-    # To get the product_id of the any symbol
+    
     def get_product_id(self,symbol):
-        
+    
         url = f"https://api.delta.exchange/v2/products/{symbol}"
         response = requests.get(url, headers= self.headers)
 
@@ -83,13 +90,13 @@ class Delat():
             data = response.json()
             if data["success"]:
                 print(data["result"]["id"])
-                return data["result"]["id"]
-            
+                return data["result"]["id"]   
             else:
                 return "Could not retrieve data. Please check the product symbol."
         else:
             return f"Failed to retrieve data. HTTP Status code: {response.status_code}"
         
+            
     def place_order(self,side, qty, product_id, order_type="market_order", price=None):
         method = 'POST'
         url = "https://api.delta.exchange/v2/orders"
@@ -119,9 +126,8 @@ class Delat():
         response = requests.post(url, data=payload, headers=headers)
         return response.json()
     
-
-
-    def add_to_excel(self , timestamp ,entry_price, exit_price, stop_loss, take_profit):
+    
+    def add_to_excel(self , timestamp , entry_price , exit_price, stop_loss, take_profit):
         try:
               wb = load_workbook('BUY.xlsx')
               sheet = wb.active
@@ -141,52 +147,38 @@ class Delat():
         sheet.append([timestamp, entry_price, exit_price,stop_loss,take_profit])
         wb.save('BUY.xlsx')
         print("Entry added successfully.")
-            
-    def Strategy(self):
-        tail_2 = self.historydf.tail(2)
-        tail_1 = self.historydf.tail(1)
-        current_price = int(tail_1['close'].iloc[0])
-        time_stamp = tail_1['time'].iloc[0]
-        
-
-        # crossup Strategy
-        if (self.historydf['EMA'].iloc[-2] <= self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] >= self.historydf['middleband'].iloc[-1])and (self.historydf['EMA'].iloc[-1] == self.historydf['middleband'].iloc[-1]) :
-            print("##################")
-            print(" BUY Signal ")
-            print("##################")
-            self.entry = float(tail_1['close'].iloc[0])
-            self.stoploss= int(self.entry  - 100)
-            self.takeprofit = int(self.entry + 200)
-            self.exit = self.stoploss
-            print(f"The current timestamp{time_stamp}")
-            print(f"The entry price is {self.entry}")
-            print(f"The  price is exit  {self.exit }")
-            print(f"The stoploss price is {self.stoploss}")
-            print(f"The EMA :{tail_1['EMA'].iloc[0]}")
-            print(f"The Previous EMA :{tail_2['EMA'].iloc[0]}")
-            print(f"The middelband :{tail_1['middleband'].iloc[0]}")
-            print(f"The Previous middelband :{tail_2['middleband'].iloc[0]}")
-
-         # crossdown Strategy    
-        if (self.historydf['EMA'].iloc[-2] >= self.historydf['middleband'].iloc[-2]) and (self.historydf['EMA'].iloc[-1] <= self.historydf['middleband'].iloc[-1]) and (self.historydf['EMA'].iloc[-1] == self.historydf['middleband'].iloc[-1]) :
-            print("##################")
-            print(" SELL Signal ")
-            print("##################")
-            self.entry = float(tail_1['close'].iloc[0])
-            self.stoploss= int(self.entry  + 100)
-            self.takeprofit = int(self.entry - 200)
-            self.exit = self.stoploss
-            print(f"The current timestamp{time_stamp}")
-            print(f"The entry price is {self.entry}")
-            print(f"The  price is exit  {self.exit }")
-            print(f"The stoploss price is {self.stoploss}")
-            print(f"The EMA :{tail_1['EMA'].iloc[0]}")
-            print(f"The Previous EMA :{tail_2['EMA'].iloc[0]}")
-            print(f"The middelband :{tail_1['middleband'].iloc[0]}")
-            print(f"The Previous middelband :{tail_2['middleband'].iloc[0]}")
-
-        
-
+    
+    
+    def Strategy(self,close_data):
+        current_price = int(close_data)
+        time_stamp = self.livedf['candel_start'].iloc[-1]
+        if len(self.livedf) >= 2 and len(self.historydf) >= 2:
+            print("Now started")
+            if (self.livedf['current_EMA'].iloc[-2] < self.livedf['current_SMA'].iloc[-2]) and (abs(int(self.livedf['current_SMA'].iloc[-1]) - int(self.livedf['current_EMA'].iloc[-1])) <= 1) :
+                print("##################")
+                print(" BUY Signal ")
+                print("##################")
+                self.entry = float(self.livedf['close'].iloc[-1])
+                self.stoploss= int(self.entry  - 100)
+                self.takeprofit = int(self.entry + 200)
+                self.exit = self.stoploss
+                print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
+                print(f"The entry price is {self.entry}")
+                print(f"The  price is exit  {self.exit }")
+                print(f"The stoploss price is {self.stoploss}")
+               # crossdown Strategy    
+            if (self.livedf['EMA'].iloc[-2] > self.livedf['middleband'].iloc[-2]) and (abs(int(self.livedf['middleband'].iloc[-1]) - int(self.livedf['EMA'].iloc[-1])) <= 1) :
+                print("##################")
+                print(" SELL Signal ")
+                print("##################")
+                self.entry = float(self.livedf['close'].iloc[0])
+                self.stoploss= int(self.entry  + 100)
+                self.takeprofit = int(self.entry - 200)
+                self.exit = self.stoploss
+                print(f"The current timestamp{self.livedf['close'].iloc[-1]}")
+                print(f"The entry price is {self.entry}")
+                print(f"The  price is exit  {self.exit }")
+                print(f"The stoploss price is {self.stoploss}")
 
         if current_price == self.stoploss:
             print("The trade ended  with a loss")
@@ -204,6 +196,44 @@ class Delat():
         
 
 
+
+    
+    def calculate_ema(self, prices, period):
+        multiplier = 2 / (period + 1)
+        return prices.ewm(alpha=multiplier, adjust=False).mean()
+    
+    def LiveEMA_Middle_band(self, close_data,start_time):
+        # Assuming self.finaldf is a DataFrame with 'EMA' and 'middleband' columns
+        Previous_EMA = self.finaldf['EMA'].iloc[-1]
+        Previous_middle = self.finaldf['middleband'].iloc[-1]
+        span = 5
+        multiplier = 2 / (span + 1)
+        current_EMA = (close_data - Previous_EMA) * multiplier + Previous_EMA
+
+        # SMA Calculation
+        sma_span = 15  # Define the period for the SMA calculation
+        # To calculate the SMA, fetch the last (sma_span-1) closing prices and include the new close_data
+        if len(self.finaldf['close']) >= sma_span - 1:
+            recent_closes = self.finaldf['close'].tail(sma_span - 1).tolist() + [close_data]
+            current_SMA = sum(recent_closes) / sma_span
+        else:
+            # If there's not enough historical 'close' data, calculate SMA with available data plus the new close_data
+            recent_closes = self.finaldf['close'].tolist() + [close_data]
+            current_SMA = sum(recent_closes) / len(recent_closes)
+
+
+        live_EMA = pd.DataFrame({ 
+            'candel_start':[pd.to_datetime(start_time / 1000000, unit='s')],
+            'close': [close_data],
+            'Previous_EAM': [Previous_EMA],
+            'Previous_middle': [Previous_middle],
+            'current_EMA': [current_EMA],
+            'current_SMA':[current_SMA]
+        })
+        self.livedf = pd.concat([self.livedf,live_EMA],ignore_index=True)
+        self.Strategy(close_data)
+
+
     def Update_data(self,data):
         if data['close'] is None or data['candle_start_time'] is None:
             print("Warning: close or candle_start_time value is None. Skipping Update_data.")
@@ -218,23 +248,45 @@ class Delat():
         if np.isnan(close_data):  # Check if close_data is NaN
             print("Warning: close_data is NaN. Skipping Update_data.")
             return
-
-        new_df = pd.DataFrame({
-            'time': [pd.to_datetime(start_time / 1000000, unit='s')],
-            'open': [open_data],
-            'close': [close_data],
-            'high': [high_data],
-            'low': [low_data],
-            'volume': [volume_data]
-        })
-
-        self.historydf = pd.concat([self.historydf, new_df], ignore_index=True)
-        self.historydf['EMA'] = np.round(abstract.EMA(self.historydf['close'],5),1)
-        self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=0.0, matype=0),1)
-
-        # print(self.historydf)
-        self.Strategy()
-
+        # print(f"Previous:{self.historydf['time'].iloc[-2]}")
+        # print(f"Current:{self.historydf['time'].iloc[-1]}")
+        try:
+            new_df = pd.DataFrame({
+                    'time': [pd.to_datetime(start_time / 1000000, unit='s')],
+                    'open': [open_data],
+                    'close': [close_data],
+                    'high': [high_data],
+                    'low': [low_data],
+                    'volume': [volume_data]
+                })
+            self.historydf = pd.concat([self.historydf, new_df], ignore_index=True)
+            if self.historydf['time'].iloc[-1] != self.historydf['time'].iloc[-2]:
+                pre_closing =self.historydf['close'].iloc[-2]
+                pre_open =self.historydf['open'].iloc[-2]
+                pre_time =self.historydf['time'].iloc[-2]
+                pre_low =self.historydf['low'].iloc[-2]
+                pre_high =self.historydf['high'].iloc[-2]
+                pre_volume =self.historydf['volume'].iloc[-2]
+                pre_new_df =pd.DataFrame({
+                    'time': [pre_time],
+                    'open': [pre_open],
+                    'close':[pre_closing],
+                    'high': [pre_high],
+                    'low':  [pre_low],
+                    'volume': [pre_volume]
+                })
+                self.finaldf = pd.concat([self.finaldf, pre_new_df], ignore_index= True)
+                self.finaldf['EMA'] = round(self.calculate_ema(self.finaldf['close'],5),1)
+                self.finaldf['middleband'] = self.finaldf['close'].rolling(window=15).mean().round(1)
+                self.finaldf['upper'] = 0 
+                self.finaldf['lower'] = 0
+                # print(self.finaldf.tail(1))
+                self.finaldf.to_excel("EMA.xlsx")
+            self.LiveEMA_Middle_band(close_data,start_time)
+            
+        except ValueError as e:
+            print(f"Error converting data types: {e}")
+            return
 
     def on_message(self,ws, message):
         data = json.loads(message)
@@ -275,7 +327,7 @@ class Delat():
             "type": "subscribe",
             "payload": {
                 "channels": [
-                    {"name": "candlestick_15m", "symbols": ['BTCUSDT']},
+                    {"name": "candlestick_1m", "symbols": ['BTCUSDT']},
                 ]
             }
         }
@@ -287,6 +339,7 @@ class Delat():
       ws.run_forever()
 
 api_key = 'VraFQTfHWk1w7Id1uC1pJvyKQ5AWy5'
+
 api_secret = 'XJofp39iR4p7092qkzJdH9VPmoZmHtWv2x0huuJWscPerHtGqcf2Uo996JMj'
 
 
@@ -294,5 +347,3 @@ delta = Delat(api_key,api_secret,25)
 
 delta.History()
 delta.live_data()
-# delta.get_product_id('BTCUSDT')
-# delta.has_15_minutes_passed(1708197060000000)

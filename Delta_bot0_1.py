@@ -145,7 +145,7 @@ class Delat():
                 return
 
         sheet.append([timestamp, entry_price, exit_price,stop_loss,take_profit])
-        wb.save('BUY.xlsx')
+        wb.save('Trades.xlsx')
         print("Entry added successfully.")
     
     
@@ -153,32 +153,36 @@ class Delat():
         current_price = int(close_data)
         time_stamp = self.livedf['candel_start'].iloc[-1]
         if len(self.livedf) >= 2 and len(self.historydf) >= 2:
-            print("Now started")
-            if (self.livedf['current_EMA'].iloc[-2] < self.livedf['current_SMA'].iloc[-2]) and (abs(int(self.livedf['current_SMA'].iloc[-1]) - int(self.livedf['current_EMA'].iloc[-1])) <= 1) :
-                print("##################")
-                print(" BUY Signal ")
-                print("##################")
-                self.entry = float(self.livedf['close'].iloc[-1])
-                self.stoploss= int(self.entry  - 100)
-                self.takeprofit = int(self.entry + 200)
-                self.exit = self.stoploss
-                print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
-                print(f"The entry price is {self.entry}")
-                print(f"The  price is exit  {self.exit }")
-                print(f"The stoploss price is {self.stoploss}")
+            if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
+                diff = abs(self.livedf['current_SMA'].iloc[-1] - self.livedf['current_EMA'].iloc[-1])
+                if (self.livedf['current_EMA'].iloc[-2] < self.livedf['current_SMA'].iloc[-2]) and (diff <= 1):
+                    print("##################")
+                    print(" BUY Signal ")
+                    print("##################")
+                    self.entry = float(self.livedf['close'].iloc[-1])
+                    self.stoploss= int(self.entry  - 100)
+                    self.takeprofit = int(self.entry + 200)
+                    self.exit = self.stoploss
+                    print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
+                    print(f"The entry price is {self.entry}")
+                    print(f"The  price is exit  {self.exit }")
+                    print(f"The stoploss price is {self.stoploss}")
+
                # crossdown Strategy    
-            if (self.livedf['EMA'].iloc[-2] > self.livedf['middleband'].iloc[-2]) and (abs(int(self.livedf['middleband'].iloc[-1]) - int(self.livedf['EMA'].iloc[-1])) <= 1) :
-                print("##################")
-                print(" SELL Signal ")
-                print("##################")
-                self.entry = float(self.livedf['close'].iloc[0])
-                self.stoploss= int(self.entry  + 100)
-                self.takeprofit = int(self.entry - 200)
-                self.exit = self.stoploss
-                print(f"The current timestamp{self.livedf['close'].iloc[-1]}")
-                print(f"The entry price is {self.entry}")
-                print(f"The  price is exit  {self.exit }")
-                print(f"The stoploss price is {self.stoploss}")
+            if not pd.isna(self.livedf['EMA'].iloc[-2]) and not pd.isna(self.livedf['middleband'].iloc[-2]):
+                diff = abs(self.livedf['middleband'].iloc[-1] - self.livedf['EMA'].iloc[-1])
+                if (self.livedf['EMA'].iloc[-2] > self.livedf['middleband'].iloc[-2]) and (diff <= 1):
+                    print("##################")
+                    print(" SELL Signal ")
+                    print("##################")
+                    self.entry = float(self.livedf['close'].iloc[0])
+                    self.stoploss= int(self.entry  + 100)
+                    self.takeprofit = int(self.entry - 200)
+                    self.exit = self.stoploss
+                    print(f"The current timestamp{self.livedf['close'].iloc[-1]}")
+                    print(f"The entry price is {self.entry}")
+                    print(f"The  price is exit  {self.exit }")
+                    print(f"The stoploss price is {self.stoploss}")
 
         if current_price == self.stoploss:
             print("The trade ended  with a loss")
@@ -194,8 +198,6 @@ class Delat():
             #add the data to excel 
             self.add_to_excel(time_stamp,self.entry,self.exit,self.stoploss,self.takeprofit)
         
-
-
 
     
     def calculate_ema(self, prices, period):

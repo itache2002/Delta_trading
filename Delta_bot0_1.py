@@ -36,7 +36,7 @@ class Delat():
         last_100_candel = current_timestamp - 90000
 
         params = {
-            'resolution': '1m',
+            'resolution': '15m',
             'symbol': 'BTCUSDT',
             'start':last_100_candel, 
             'end': current_timestamp   
@@ -55,8 +55,6 @@ class Delat():
             self.historydf['EMA'] =np.round(abstract.EMA(self.historydf['close'], 5),1)
             self.finaldf = self.historydf
             self.livedf = self.historydf
-            # print(self.finaldf)
-
 
         else:
             print(f"Failed to fetch data. Status code: {r.status_code}")
@@ -165,13 +163,14 @@ class Delat():
                     self.exit = self.stoploss
                     print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                     print(f"The entry price is {self.entry}")
-                    print(f"The  price is exit  {self.exit }")
+                    print(f"The  price is takeprofit  {self.takeprofit }")
                     print(f"The stoploss price is {self.stoploss}")
 
+
                # crossdown Strategy    
-            if not pd.isna(self.livedf['EMA'].iloc[-2]) and not pd.isna(self.livedf['middleband'].iloc[-2]):
-                diff = abs(self.livedf['middleband'].iloc[-1] - self.livedf['EMA'].iloc[-1])
-                if (self.livedf['EMA'].iloc[-2] > self.livedf['middleband'].iloc[-2]) and (diff <= 1):
+            if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
+                diff = abs(self.livedf['current_SMA'].iloc[-1] - self.livedf['current_EMA'].iloc[-1])
+                if (self.livedf['current_EMA'].iloc[-2] > self.livedf['current_SMA'].iloc[-2]) and (diff <= 1):
                     print("##################")
                     print(" SELL Signal ")
                     print("##################")
@@ -179,10 +178,11 @@ class Delat():
                     self.stoploss= int(self.entry  + 100)
                     self.takeprofit = int(self.entry - 200)
                     self.exit = self.stoploss
-                    print(f"The current timestamp{self.livedf['close'].iloc[-1]}")
+                    print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                     print(f"The entry price is {self.entry}")
-                    print(f"The  price is exit  {self.exit }")
+                    print(f"The  price is  takeprofit { self.takeprofit}")
                     print(f"The stoploss price is {self.stoploss}")
+
 
         if current_price == self.stoploss:
             print("The trade ended  with a loss")
@@ -197,7 +197,6 @@ class Delat():
             self.exit = self.takeprofit
             #add the data to excel 
             self.add_to_excel(time_stamp,self.entry,self.exit,self.stoploss,self.takeprofit)
-        
 
     
     def calculate_ema(self, prices, period):
@@ -289,10 +288,16 @@ class Delat():
         except ValueError as e:
             print(f"Error converting data types: {e}")
             return
-
+    def send_heartbeat(self,ws):
+        heartbeat={
+        "type": "enable_heartbeat"
+        }
+        ws.send(json.dump(heartbeat))
+        
     def on_message(self,ws, message):
         data = json.loads(message)
         # print(data)
+        self.send_heartbeat(ws)
         self.Update_data(data)
 
     def on_close(self,ws, close_status_code, close_msg):
@@ -329,7 +334,7 @@ class Delat():
             "type": "subscribe",
             "payload": {
                 "channels": [
-                    {"name": "candlestick_1m", "symbols": ['BTCUSDT']},
+                    {"name": "candlestick_15m", "symbols": ['BTCUSDT']},
                 ]
             }
         }

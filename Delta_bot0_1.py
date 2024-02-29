@@ -297,7 +297,6 @@ class Delat():
     def on_message(self,ws, message):
         data = json.loads(message)
         # print(data)
-        self.send_heartbeat(ws)
         self.Update_data(data)
 
     def on_close(self,ws, close_status_code, close_msg):
@@ -339,6 +338,8 @@ class Delat():
             }
         }
         ws.send(json.dumps(subscribe_msg))
+        self.send_heartbeat(ws)
+        
 
 
     def live_data(self):

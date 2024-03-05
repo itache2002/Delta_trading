@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import numpy as np
 from openpyxl import Workbook, load_workbook
+import time
 
 
 class Delat():
@@ -28,6 +29,7 @@ class Delat():
         self.crossover = False
         self.finaldf=None
         self.livedf= None
+        self.maxreconnect = 5
 
 
 
@@ -174,7 +176,7 @@ class Delat():
                     print("##################")
                     print(" SELL Signal ")
                     print("##################")
-                    self.entry = float(self.livedf['close'].iloc[0])
+                    self.entry = float(self.livedf['close'].iloc[-1])
                     self.stoploss= int(self.entry  + 100)
                     self.takeprofit = int(self.entry - 200)
                     self.exit = self.stoploss
@@ -292,15 +294,23 @@ class Delat():
         heartbeat={
         "type": "enable_heartbeat"
         }
-        ws.send(json.dump(heartbeat))
+        ws.send(json.dumps(heartbeat))
         
     def on_message(self,ws, message):
         data = json.loads(message)
-        # print(data)
+        print(data)
         self.Update_data(data)
 
     def on_close(self,ws, close_status_code, close_msg):
         print("Websocket closed")
+
+        if self.reconnect_attempts < self.max_reconnect_attempts:
+            print(f"Attempting to reconnect, attempt {self.reconnect_attempts + 1}")
+            time.sleep(self.reconnect_delay)  # Wait before attempting to reconnect
+            self.reconnect_attempts += 1  # Increment the reconnection attempt counter
+            self.live_data()  # Attempt to reconnect
+        else:
+            print("Maximum reconnection attempts reached. Not attempting to reconnect.")
 
     def on_error(self,ws, error):
         print(f"Error: {error}")

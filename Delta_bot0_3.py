@@ -101,10 +101,8 @@ class Delat():
         return hash.hexdigest(), timestamp
     
     def get_product_id(self,symbol):
-    
         url = f"https://api.delta.exchange/v2/products/{symbol}"
         response = requests.get(url, headers= self.headers)
-
         if response.status_code == 200:
             data = response.json()
             if data["success"]:
@@ -115,7 +113,45 @@ class Delat():
         else:
             return f"Failed to retrieve data. HTTP Status code: {response.status_code}"
         
-            
+
+    def Get_wallet_info(self):
+        method = 'GET'
+        endpoint = '/v2/wallet/balances'
+        url  = 'https://api.delta.exchange/v2/wallet/balances'
+        signature, timestamp = self.Place_generate_signature(method,endpoint,'')
+        headers = {'Accept': 'application/json',
+                    'api-key': self.api_key,
+                    'signature': signature,
+                    'timestamp': timestamp}
+        response = requests.get(url, headers=headers)
+        print(response.status_code)
+        print(response.text)
+        return response.json()
+    
+
+    def set_Leverage(self,product_id,leverage):
+        method= 'POST'
+        endpoint =f'/v2/products/{product_id}/orders/leverage'
+        url = f'https://api.delta.exchange/v2/products/{product_id}/orders/leverage'
+        params = {
+            "leverage":leverage
+            }
+        payload = json.dumps(params).replace(' ', '')
+        signature, timestamp = self.Place_generate_signature(method, endpoint, payload )
+        headers = {
+        'api-key': self.api_key,
+        'timestamp': timestamp,
+        'signature': signature,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+
+        }
+        response = requests.post(url, data=payload, headers=headers)
+        print(response.status_code)
+        print(response.text)
+        return response.json()
+
+
     def place_order(self,side, qty, product_id, order_type="market_order", price=None):
         method = 'POST'
         url = "https://api.delta.exchange/v2/orders"
@@ -143,6 +179,7 @@ class Delat():
         }
 
         response = requests.post(url, data=payload, headers=headers)
+    
         return response.json()
     
     
@@ -239,8 +276,6 @@ class Delat():
                             self.add_to_excel(time_stamp,self.entry,self.signal_type)
                         
 
-
-                
 
     
     def calculate_ema(self, prices, period):
@@ -394,7 +429,7 @@ class Delat():
         '''
         subscribe_msg = {
             "type": "subscribe",
-            "payload": {
+            "payload": {    
                 "channels": [
                     {"name": "candlestick_15m", "symbols": ['BTCUSDT']},
                 ]
@@ -410,11 +445,16 @@ class Delat():
       ws.run_forever()
 
 api_key = 'VraFQTfHWk1w7Id1uC1pJvyKQ5AWy5'
-
 api_secret = 'XJofp39iR4p7092qkzJdH9VPmoZmHtWv2x0huuJWscPerHtGqcf2Uo996JMj'
+
+# api_key = 'oNhfyfYF7JWO8Dg49e5K9SzyYur3a3'
+# api_secret = 'QtqmRXJlA7QzlfwnTxvPImavoO6excynkGxCbNNkpFwJugooy5s2kFiRhfPz'
 
 
 delta = Delat(api_key,api_secret,25)
 
-delta.History()
-delta.live_data()
+# delta.History()
+# delta.live_data()
+# delta.Get_wallet_info()
+# pid= delta.get_product_id('BTCUSDT')
+delta.set_Leverage(139,50)

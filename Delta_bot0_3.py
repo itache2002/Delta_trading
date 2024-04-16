@@ -133,9 +133,7 @@ class Delat():
         method= 'POST'
         endpoint =f'/v2/products/{product_id}/orders/leverage'
         url = f'https://api.delta.exchange/v2/products/{product_id}/orders/leverage'
-        params = {
-            "leverage":leverage
-            }
+        params = {"leverage":leverage}
         payload = json.dumps(params).replace(' ', '')
         signature, timestamp = self.Place_generate_signature(method, endpoint, payload )
         headers = {
@@ -144,7 +142,6 @@ class Delat():
         'signature': signature,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
-
         }
         response = requests.post(url, data=payload, headers=headers)
         print(response.status_code)

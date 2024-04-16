@@ -10,7 +10,6 @@ import numpy as np
 from openpyxl import Workbook, load_workbook
 import time
 
-
 class Delat():
     def __init__(self,api_key, api_secret,lev):
         self.api_key = api_key
@@ -27,11 +26,13 @@ class Delat():
         self.stoploss= 0
         self.takeprofit = 0
         self.crossover = False
-        self.finaldf=None
+        self.finaldf= None
         self.livedf= None
         self.max_reconnect_attempts = 1000
         self.reconnect_attempts = 0
         self.reconnect_delay = 5
+        self.signal_type = 'none'
+        self.pre5diff = False
 
 
 
@@ -55,14 +56,30 @@ class Delat():
             self.historydf = df
             self.historydf = self.historydf.iloc[::-1].reset_index(drop=True)
             # self.historydf = self.historydf.drop(self.historydf.index[-1])
-            self.historydf['upper'], self.historydf['middleband'], self.historydf['lower'] = np.round(abstract.BBANDS(self.historydf['close'], timeperiod=15, nbdevup=3.0, nbdevdn=3.0, matype=0),1)
+            
+
+
+            self.historydf['SMA'] = np.round(abstract.SMA(self.historydf['close'], timeperiod=15),1)
+           
+           
             self.historydf['EMA'] =np.round(abstract.EMA(self.historydf['close'], 5),1)
+           
             self.finaldf = self.historydf
             self.livedf = self.historydf
+            self.save_history_to_excel('history_data.xlsx')
 
         else:
             print(f"Failed to fetch data. Status code: {r.status_code}")
 
+
+    def save_history_to_excel(self, file_path='history_data.xlsx'):
+        try:
+            # Using the 'openpyxl' engine to enable writing to Excel files
+            self.historydf.to_excel(file_path, engine='openpyxl', index=False)
+            print(f"History DataFrame saved to {file_path}")
+            
+        except Exception as e:
+            print(f"Failed to save DataFrame to Excel. Error: {e}")
 
     def generate_signature(self,secret, message):
         message = bytes(message, 'utf-8')
@@ -129,88 +146,111 @@ class Delat():
         return response.json()
     
     
-    def add_to_excel(self , timestamp , entry_price , exit_price, stop_loss, take_profit):
+    def add_to_excel(self, timestamp, entry_price, signal):
         try:
-              wb = load_workbook('Trade.xlsx')
-              sheet = wb.active
+            # Load existing workbook or create a new one if not exists
+            wb = load_workbook('Trades.xlsx')
+            sheet = wb.active
         except FileNotFoundError:
-              wb = Workbook()
-              sheet = wb.active
-              sheet.append(['Entry Time', 'Entry Price', 'Exit Price','stop_loss','take_profit'])
+            wb = Workbook()
+            sheet = wb.active
+            sheet.append(['Entry Time', 'Entry Price', 'Signal'])
 
-        for row in sheet.iter_rows(min_row=2, max_col=7):
-            existing_entry = [cell.value for cell in row]
-            new_entry = [entry_price, exit_price, stop_loss, take_profit]
+        new_entry = [timestamp, entry_price, signal]
 
-            if existing_entry[1:] == new_entry:
+        # Check for duplicate entry
+        if sheet.max_row > 1:  
+            # Check if there is at least one entry
+            # Access the last row in the Excel sheet
+            last_row = sheet[sheet.max_row]
+            # Extract values from the last row cells
+            existing_entry = [cell.value for cell in last_row[:3]]
+            
+            
+            if existing_entry[2] == new_entry[2]:
                 print("Duplicate entry found. Exiting without adding.")
                 return
 
-        sheet.append([timestamp, entry_price, exit_price,stop_loss,take_profit])
-        wb.save('Trade.xlsx')
+        # Append trade details to the Excel sheet
+        sheet.append([timestamp, entry_price, signal])
+        # Save workbook
+        wb.save('Trades.xlsx')
         print("Entry added successfully.")
+
     
     
-    def Strategy(self,close_data):
+    def Strategy(self,close_data):                                                                  #edited
         current_price = int(close_data)
         time_stamp = self.livedf['candel_start'].iloc[-1]
-        if len(self.livedf) >= 2 and len(self.historydf) >= 2:
-            if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
-                diff = abs(self.livedf['current_SMA'].iloc[-1] - self.livedf['current_EMA'].iloc[-1])
-                if (self.livedf['current_EMA'].iloc[-2] < self.livedf['current_SMA'].iloc[-2]) and (diff <= 1):
-                    print("##################")
-                    print(" BUY Signal ")
-                    print("##################")
-                    self.entry = float(self.livedf['close'].iloc[-1])
-                    self.stoploss= int(self.entry  - 100)
-                    self.takeprofit = int(self.entry + 200)
-                    self.exit = self.stoploss
-                    print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
-                    print(f"The entry price is {self.entry}")
-                    print(f"The  price is takeprofit  {self.takeprofit }")
-                    print(f"The stoploss price is {self.stoploss}")
+        diff = abs(self.livedf['current_SMA'].iloc[-1] - self.livedf['current_EMA'].iloc[-1])              
+        
+           
+        if len(self.livedf) >= 5 and len(self.historydf) >= 5 and len(self.finaldf) >= 5:
+
+            if(self.pre5diff == True):
+                if(diff >= 100 and diff <=150):
+                    if (self.livedf['current_EMA'].iloc[-1] > self.livedf['current_SMA'].iloc[-1]):
+                        print("##################")
+                        print(" BUY Signal ")
+                        print("##################")
+                        self.signal_type = 'buy'                                                        #need edit in the stratagy
+                        self.entry = float(self.livedf['close'].iloc[-1])
+                        print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
+                        print(f"The entry price is {self.entry}")
+                        self.add_to_excel(time_stamp,self.entry,self.signal_type)
+
+                    if (self.livedf['current_EMA'].iloc[-1] < self.livedf['current_SMA'].iloc[-1]):
+                        print("##################")
+                        print(" SELL Signal ")
+                        print("##################")
+                        self.signal_type = 'sell'
+                        self.entry = float(self.livedf['close'].iloc[-1])
+                        print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
+                        print(f"The entry price is {self.entry}")
+                        self.add_to_excel(time_stamp,self.entry,self.signal_type)
+                
+            
+            else:
+                if (diff <= 5):                                                                         #edited
+                        # crossdown Strategy  
+                    if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
+                        if (self.finaldf['EMA'].iloc[-3] > self.finaldf['SMA'].iloc[-3]):
+                            print("##################")
+                            print(" SELL Signal ")
+                            print("##################")
+                            self.signal_type = 'sell'
+                            self.entry = float(self.livedf['close'].iloc[-1])
+                            print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
+                            print(f"The entry price is {self.entry}")
+                            self.add_to_excel(time_stamp,self.entry,self.signal_type)
+                            
+                            
+
+                    # crossup Strategy    
+                    if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
+                        if (self.finaldf['EMA'].iloc[-3] < self.finaldf['SMA'].iloc[-3]):
+                            print("##################")
+                            print(" BUY Signal ")
+                            print("##################")
+                            self.signal_type = 'buy'
+                            self.entry = float(self.livedf['close'].iloc[-1])
+                            print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
+                            print(f"The entry price is {self.entry}")
+                            self.add_to_excel(time_stamp,self.entry,self.signal_type)
+                        
 
 
-               # crossdown Strategy    
-            if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
-                diff = abs(self.livedf['current_SMA'].iloc[-1] - self.livedf['current_EMA'].iloc[-1])
-                if (self.livedf['current_EMA'].iloc[-2] > self.livedf['current_SMA'].iloc[-2]) and (diff <= 1):
-                    print("##################")
-                    print(" SELL Signal ")
-                    print("##################")
-                    self.entry = float(self.livedf['close'].iloc[-1])
-                    self.stoploss= int(self.entry  + 100)
-                    self.takeprofit = int(self.entry - 200)
-                    self.exit = self.stoploss
-                    print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
-                    print(f"The entry price is {self.entry}")
-                    print(f"The  price is  takeprofit { self.takeprofit}")
-                    print(f"The stoploss price is {self.stoploss}")
-
-
-        if current_price == self.stoploss:
-            print("The trade ended  with a loss")
-            # Setting the exit to stoploss
-            self.exit = self.stoploss
-            #add the data to excel 
-            self.add_to_excel(time_stamp,self.entry,self.exit,self.stoploss,self.takeprofit)
-
-        if current_price == self.takeprofit:
-            print("The trade ended  with a profit")
-            # Setting the exit to the take profit
-            self.exit = self.takeprofit
-            #add the data to excel 
-            self.add_to_excel(time_stamp,self.entry,self.exit,self.stoploss,self.takeprofit)
+                
 
     
     def calculate_ema(self, prices, period):
         multiplier = 2 / (period + 1)
-        return prices.ewm(alpha=multiplier, adjust=False).mean()
+        return prices.ewm(alpha=multiplier, adjust=True).mean()
     
-    def LiveEMA_Middle_band(self, close_data,start_time):
-        # Assuming self.finaldf is a DataFrame with 'EMA' and 'middleband' columns
+    def Live_EMA_SMA(self, close_data, start_time):
+        # Assuming self.finaldf is a DataFrame with 'EMA' and 'SMA' columns
         Previous_EMA = self.finaldf['EMA'].iloc[-1]
-        Previous_middle = self.finaldf['middleband'].iloc[-1]
+        Previous_SMA = self.finaldf['SMA'].iloc[-1]
         span = 5
         multiplier = 2 / (span + 1)
         current_EMA = (close_data - Previous_EMA) * multiplier + Previous_EMA
@@ -230,13 +270,17 @@ class Delat():
         live_EMA = pd.DataFrame({ 
             'candel_start':[pd.to_datetime(start_time / 1000000, unit='s')],
             'close': [close_data],
-            'Previous_EAM': [Previous_EMA],
-            'Previous_middle': [Previous_middle],
+            'Previous_EMA': [Previous_EMA],
+            'Previous_SMA': [Previous_SMA],
             'current_EMA': [current_EMA],
             'current_SMA':[current_SMA]
+  
         })
-        self.livedf = pd.concat([self.livedf,live_EMA],ignore_index=True)
+        
+        self.livedf = pd.concat([self.livedf,live_EMA],ignore_index=True)                           # only DF with SMA an EMA need to be added to self.livedf
+        #print(self.livedf)
         self.Strategy(close_data)
+
 
 
     def Update_data(self,data):
@@ -253,8 +297,8 @@ class Delat():
         if np.isnan(close_data):  # Check if close_data is NaN
             print("Warning: close_data is NaN. Skipping Update_data.")
             return
-        # print(f"Previous:{self.historydf['time'].iloc[-2]}")
-        # print(f"Current:{self.historydf['time'].iloc[-1]}")
+        #print(f"Previous:{self.historydf['time'].iloc[-2]}")
+        #print(f"Current:{self.historydf['time'].iloc[-1]}")
         try:
             new_df = pd.DataFrame({
                     'time': [pd.to_datetime(start_time / 1000000, unit='s')],
@@ -282,12 +326,15 @@ class Delat():
                 })
                 self.finaldf = pd.concat([self.finaldf, pre_new_df], ignore_index= True)
                 self.finaldf['EMA'] = round(self.calculate_ema(self.finaldf['close'],5),1)
-                self.finaldf['middleband'] = self.finaldf['close'].rolling(window=15).mean().round(1)
-                self.finaldf['upper'] = 0 
-                self.finaldf['lower'] = 0
-                # print(self.finaldf.tail(1))
-                self.finaldf.to_excel("EMA.xlsx")
-            self.LiveEMA_Middle_band(close_data,start_time)
+                self.finaldf['SMA'] = self.finaldf['close'].rolling(window=15).mean().round(1) 
+                self.finaldf['Diff'] = abs(self.finaldf['EMA'] - self.finaldf['SMA'])                 #edited
+                #print(self.finaldf)
+                last_index = self.finaldf.index[-1]
+                start_index = max(0, last_index - 4)
+                if (self.finaldf['Diff'].iloc[start_index:last_index + 1] < 50).any():
+                    self.pre5diff = True
+                    print (self.pre5diff)
+            self.Live_EMA_SMA(close_data,start_time)
             
         except ValueError as e:
             print(f"Error converting data types: {e}")
@@ -297,7 +344,7 @@ class Delat():
         "type": "enable_heartbeat"
         }
         ws.send(json.dumps(heartbeat))
-        
+         
     def on_message(self,ws, message):
         data = json.loads(message)
         self.Update_data(data)
@@ -309,6 +356,7 @@ class Delat():
             print(f"Attempting to reconnect, attempt {self.reconnect_attempts + 1}")
             time.sleep(self.reconnect_delay)  # Wait before attempting to reconnect
             self.reconnect_attempts += 1  # Increment the reconnection attempt counter
+            self.History()
             self.live_data()  # Attempt to reconnect
         else:
             print("Maximum reconnection attempts reached. Not attempting to reconnect.")

@@ -359,7 +359,7 @@ class Delat():
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
                         self.add_to_excel(time_stamp,self.entry,self.signal_type)
-                        pos= self.Get_Positions()
+                        pos= self.Get_Positions(139)
                         # Buy order placement
                         if pos["result"]["entry_price"] is None:
                             self.place_order(side='buy', qty= 40, product_id=139)
@@ -390,7 +390,7 @@ class Delat():
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
                         self.add_to_excel(time_stamp,self.entry,self.signal_type)
-                        pos= self.Get_Positions()
+                        pos= self.Get_Positions(139)
                         # sell order place
                         if pos["result"]["entry_price"] is None:
                             self.place_order(side='sell', qty=40, product_id=139)
@@ -416,7 +416,7 @@ class Delat():
                         print(f"The entry price is {self.entry}")
                         self.add_to_excel(time_stamp,self.entry,self.signal_type)
 
-                        pos= self.Get_Positions()
+                        pos= self.Get_Positions(139)
 
                         if pos["result"]["entry_price"] is None:
                             self.place_order(side='sell', qty=40, product_id=139)
@@ -443,7 +443,7 @@ class Delat():
                             print(f"The entry price is {self.entry}")
                             self.add_to_excel(time_stamp,self.entry,self.signal_type)
 
-                            pos= self.Get_Positions()
+                            pos= self.Get_Positions(139)
                             # Buy order placement
                             if pos["result"]["entry_price"] is None:
                                 self.place_order(side='buy', qty=40, product_id=139)

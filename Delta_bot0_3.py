@@ -322,7 +322,7 @@ class Delat():
             
             if existing_entry[2] == new_entry[2]:
                 print("Duplicate entry found. Exiting without adding.")
-                return
+                return True
 
         # Append trade details to the Excel sheet
         sheet.append([timestamp, entry_price, signal])
@@ -358,16 +358,18 @@ class Delat():
                         self.stoploss = self.entry - 500
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
-                        self.add_to_excel(time_stamp,self.entry,self.signal_type)
+                        Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
                         pos= self.Get_Positions(139)
                         # Buy order placement
                         if pos["result"]["entry_price"] is None:
                             self.place_order(side='buy', qty= 40, product_id=139)
-                            self.place_bracket_order(side='buy', qty=20, product_id=139, take_profit=self.takeprofit,stop_loss=self.stoploss)
-                        else:
+                            self.place_bracket_order(side='buy', qty=20, product_id=139, price=self.entry,take_profit=self.takeprofit,stop_loss=self.stoploss)
+                        elif Duplicate != True:
                             self.close_all_positions()
                             self.place_order(side='buy', qty= 40, product_id=139)
-                            self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order", take_profit=self.takeprofit,stop_loss=self.stoploss)
+                            self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
+                        else:
+                            print("Order is Repeating")
 
                         # if pos is  Null 
                             #place order (BUY)
@@ -389,16 +391,16 @@ class Delat():
                         self.stoploss = self.entry + 500
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
-                        self.add_to_excel(time_stamp,self.entry,self.signal_type)
+                        Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
                         pos= self.Get_Positions(139)
                         # sell order place
                         if pos["result"]["entry_price"] is None:
                             self.place_order(side='sell', qty=40, product_id=139)
-                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order", take_profit=self.takeprofit,stop_loss=self.stoploss)
-                        else:
+                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order",price=self.entry,take_profit=self.takeprofit,stop_loss=self.stoploss)
+                        elif Duplicate != True:
                             self.close_all_positions()
                             self.place_order(side='sell', qty=40, product_id=139)
-                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order", take_profit=self.takeprofit,stop_loss= self.stoploss)
+                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss= self.stoploss)
                 
           
             if (diff <= 5):                                                                         #edited
@@ -414,17 +416,16 @@ class Delat():
                         self.stoploss = self.entry + 500
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
-                        self.add_to_excel(time_stamp,self.entry,self.signal_type)
-
+                        Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
                         pos= self.Get_Positions(139)
 
                         if pos["result"]["entry_price"] is None:
                             self.place_order(side='sell', qty=40, product_id=139)
-                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order", take_profit=self.takeprofit,stop_loss=self.stoploss)
-                        else:
+                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
+                        elif Duplicate != True:
                             self.close_all_positions()
                             self.place_order(side='sell', qty=40, product_id=139)
-                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order", take_profit=self.takeprofit,stop_loss=self.stoploss)
+                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order", price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
                                 
                             
                             
@@ -441,17 +442,17 @@ class Delat():
                             self.stoploss = self.entry - 500
                             print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                             print(f"The entry price is {self.entry}")
-                            self.add_to_excel(time_stamp,self.entry,self.signal_type)
+                            Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
 
                             pos= self.Get_Positions(139)
                             # Buy order placement
                             if pos["result"]["entry_price"] is None:
                                 self.place_order(side='buy', qty=40, product_id=139)
-                                self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order", take_profit=self.takeprofit,stop_loss=self.stoploss)
-                            else:
+                                self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
+                            elif Duplicate != True:
                                 self.close_all_positions()
                                 self.place_order(side='buy', qty=40, product_id=139)
-                                self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order", take_profit=self.takeprofit,stop_loss=self.stoploss)
+                                self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
                                 
                         
 

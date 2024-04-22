@@ -33,6 +33,10 @@ class Delat():
         self.reconnect_delay = 5
         self.signal_type = 'none'
         self.pre5diff = False
+        self.qty = 4
+        self.half_qty = self.qty/2
+        self.pid =self.get_product_id('BTCUSDT')
+        self.delay = 1
 
 
 
@@ -338,7 +342,7 @@ class Delat():
         start_index = max(0, last_index - 4)
         if (self.finaldf['Diff'].iloc[start_index:last_index + 1] < 50).any():
             self.pre5diff = True
-            print (self.pre5diff)                                                             #edited
+            #print (self.pre5diff)                                                             #edited
         current_price = int(close_data)
         time_stamp = self.livedf['candel_start'].iloc[-1]
         diff = abs(self.livedf['current_SMA'].iloc[-1] - self.livedf['current_EMA'].iloc[-1])              
@@ -358,16 +362,20 @@ class Delat():
                         self.stoploss = self.entry - 500
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
-                        Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
+                        Duplicate = self.add_to_excel(time_stamp,self.entry,self.signal_type)
                         pos= self.Get_Positions(139)
+                       
                         # Buy order placement
                         if pos["result"]["entry_price"] is None:
-                            self.place_order(side='buy', qty= 40, product_id=139)
-                            self.place_bracket_order(side='buy', qty=20, product_id=139, price=self.entry,take_profit=self.takeprofit,stop_loss=self.stoploss)
+                            self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
+                            time.sleep(self.delay)
+                            self.place_bracket_order(side='sell', qty=self.half_qty , product_id=139, price=self.takeprofit)
                         elif Duplicate != True:
                             self.close_all_positions()
-                            self.place_order(side='buy', qty= 40, product_id=139)
-                            self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order", price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
+                            self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
+                            time.sleep(self.delay)
+                            self.place_bracket_order(side='sell', qty=self.half_qty , product_id=139, price=self.takeprofit)
+
                         else:
                             print("Order is Repeating")
 
@@ -391,22 +399,21 @@ class Delat():
                         self.stoploss = self.entry + 500
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
-                        print(f"The stoploss price{self.stoploss}")
-                        print(f"The Takeprofit price{self.takeprofit}")
                         Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
                         pos= self.Get_Positions(139)
                         # sell order place
                         if pos["result"]["entry_price"] is None:
-                            self.place_order(side='sell', qty=40, product_id=139)
-                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order",price=self.entry,take_profit=self.takeprofit,stop_loss=self.stoploss)
+                            self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
+                            time.sleep(self.delay)
+                            self.place_bracket_order(side='buy', qty=self.half_qty , product_id=139, price=self.takeprofit)
                         elif Duplicate != True:
                             self.close_all_positions()
-                            self.place_order(side='sell', qty=40, product_id=139)
-                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss= self.stoploss)
-                
+                            self.place_bracket_order(side='sell',qty=self.qty,product_id=139,price=self.entry,stop_loss=self.stoploss)
+                            time.sleep(self.delay)
+                            self.place_bracket_order(side='buy', qty=self.half_qty , product_id=139, price=self.takeprofit)
+                    print("trade taken after 100 diff ")
           
-            if (diff <= 5):                                                                         #edited 
-                
+            elif (diff <= 5):                                                                         #edited
                         # crossdown Strategy  
                 if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
                     if (self.finaldf['EMA'].iloc[-3] > self.finaldf['SMA'].iloc[-3]):
@@ -423,12 +430,14 @@ class Delat():
                         pos= self.Get_Positions(139)
 
                         if pos["result"]["entry_price"] is None:
-                            self.place_order(side='sell', qty=40, product_id=139)
-                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
+                           self.place_bracket_order(side='sell',qty=self.qty,product_id=139,price=self.entry,stop_loss=self.stoploss)
+                           time.sleep(self.delay)
+                           self.place_bracket_order(side='buy', qty=self.half_qty , product_id=139, price=self.takeprofit)
                         elif Duplicate != True:
                             self.close_all_positions()
-                            self.place_order(side='sell', qty=40, product_id=139)
-                            self.place_bracket_order(side='sell', qty= 20, product_id=139, order_type="limit_order", price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
+                            self.place_bracket_order(side='sell',qty=self.qty,product_id=139,price=self.entry,stop_loss=self.stoploss)
+                            time.sleep(self.delay)
+                            self.place_bracket_order(side='buy', qty=self.half_qty , product_id=139, price=self.takeprofit)
                                 
                             
                             
@@ -450,14 +459,16 @@ class Delat():
                             pos= self.Get_Positions(139)
                             # Buy order placement
                             if pos["result"]["entry_price"] is None:
-                                self.place_order(side='buy', qty=40, product_id=139)
-                                self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
+                                self.place_bracket_order(side='buy',qty=self.qty,product_id=139,price=self.entry,stop_loss=self.stoploss)
+                                time.sleep(self.delay)
+                                self.place_bracket_order(side='sell', qty=self.half_qty , product_id=139, price=self.takeprofit)
                             elif Duplicate != True:
                                 self.close_all_positions()
-                                self.place_order(side='buy', qty=40, product_id=139)
-                                self.place_bracket_order(side='buy', qty= 20, product_id=139, order_type="limit_order",price=self.entry, take_profit=self.takeprofit,stop_loss=self.stoploss)
+                                self.place_bracket_order(side='buy',qty=self.qty,product_id=139,price=self.entry,stop_loss=self.stoploss)
+                                time.sleep(self.delay)
+                                self.place_bracket_order(side='sell', qty=self.half_qty , product_id=139, price=self.takeprofit)
                                 
-                        
+                print("trade taken while crossing ")        
 
 
     
@@ -639,6 +650,6 @@ delta.Get_wallet_info()
 delta.set_Leverage(pid,50)
 delta.History()
 delta.live_data()
-
+# delta.place_bracket_order(side='sell',qty=5,product_id=pid,price=63800,stop_loss=63300,take_profit=64300)
 
 

@@ -13,10 +13,6 @@ def has_15_minutes_passed(self,start_time):
         timestamp_datetime = datetime.utcfromtimestamp(timestamp_to_sec)
         timestamp_datetime_15_min_later = timestamp_datetime + timedelta(minutes=15)
         print(timestamp_to_sec)
-
-
-
-
             print("##################")
             print(" BUY Signal ")
             print("##################")

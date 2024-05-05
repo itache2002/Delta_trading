@@ -12,6 +12,8 @@ import time
 import pyotp
 import socket
 
+
+
 class Delat():
     def __init__(self,api_key, api_secret,lev):
         self.api_key = api_key
@@ -35,13 +37,14 @@ class Delat():
         self.reconnect_delay = 1
         self.signal_type = 'none'
         self.pre5diff = False
-        self.qty = 4
-        self.half_qty = self.qty/2
+        self.qty = 2
+        self.half_qty = int(self.qty/2)
         self.pid =self.get_product_id('BTCUSDT')
         self.delay = 1
         self.userid=99288206
         self.orderdf = None
         self.df_Data = ()
+        self.processed_ids = set()
 
 
 
@@ -50,7 +53,7 @@ class Delat():
         last_100_candel = current_timestamp - 90000
 
         params = {
-            'resolution': '15m',
+            'resolution': '1m',
             'symbol': 'BTCUSDT',
             'start':last_100_candel, 
             'end': current_timestamp   
@@ -89,7 +92,7 @@ class Delat():
             print(f"Failed to save DataFrame to Excel. Error: {e}")
 
 
-    def add_to_df(self,responce):
+    def add_to_df(self,responce,take_profit):
 
         order_data = responce["result"]
         filter_data = {
@@ -97,19 +100,22 @@ class Delat():
             "product_symbol": order_data.get("product_symbol",""),
             "size":order_data.get("size",0.0),
             "side":order_data.get("side",""),
-            "commission":order_data.get("commission","")
+            "commission":order_data.get("commission",""),
+            "Stoploss" :order_data.get("bracket_stop_loss_limit_price",""),
+            "Take_profit":take_profit
+    
         }
         self.df_Data= tuple(filter_data.values())
         print(self.df_Data)
 
-        columns = ["order_id","product_symbol","size","side","commission"]
+        columns = ["order_id","product_symbol","size","side","commission", "Stoploss","Take_profit"]
         new_order = pd.DataFrame([self.df_Data],columns=columns)
 
-        if self.orderdf  is None:
+        if self.orderdf is None:
             self.orderdf = new_order
-            print(self.orderdf)
         else:
-            self.orderdf  = pd.concat([self.orderdf,new_order],ignore_index=True)
+            self.orderdf = pd.concat([self.orderdf, new_order], ignore_index=True)
+            self.orderdf.to_excel("orders_details.xlsx")
 
     def generate_signature(self,secret, message):
         message = bytes(message, 'utf-8')
@@ -154,8 +160,8 @@ class Delat():
                     'signature': signature,
                     'timestamp': timestamp}
         response = requests.get(url, headers=headers)
-        print(response.status_code)
-        print(response.text)
+        # print(response.status_code)
+        # print(response.text)
         return response.json()
     
 
@@ -207,8 +213,6 @@ class Delat():
         }
 
         response = requests.get(url , headers= headers)
-        print(response.status_code)
-        print(response.text)
         return response.json()
     
     def close_all_positions(self, close_all_portfolio=False, close_all_isolated=True, user_id = 0):
@@ -286,12 +290,10 @@ class Delat():
         else:
             print(f'Failed to close all positions: {response.status_code} - {response.text}')
     
+    
   
 
-
-
-
-    def place_order(self,side, qty, product_id, order_type ='market_order', price=None):
+    def place_order(self,side, qty, product_id, order_type="market_order", price=None):
         method = 'POST'
         url = "https://api.delta.exchange/v2/orders"
         endpoint = "/v2/orders"
@@ -302,6 +304,7 @@ class Delat():
             "size": qty,
             "side": side,
             "product_id": product_id,
+
         }
         if price:
             params["limit_price"] = str(price)
@@ -317,7 +320,7 @@ class Delat():
             'Content-Type': 'application/json'
         }
 
-        response = requests.post(url, data=payload,  headers=headers)
+        response = requests.post(url,data=payload, headers=headers)
         if response.status_code == 200:
             try:
                 print(response.text)
@@ -325,7 +328,7 @@ class Delat():
             except json.decoder.JSONDecodeError:
                 print(f'Failed to parse JSON: {response.text}')
         else:
-            print(f'Failed to close all Buy: {response.status_code} - {response.text}')
+            print(f'Failed to place Buy: {response.status_code} - {response.text}')
 
     
     
@@ -359,31 +362,65 @@ class Delat():
         # Save workbook
         wb.save('Trades.xlsx')
         print("Entry added successfully.")
-    
+            
+    def check_for_new_entries(self,df, processed_set):
+        if self.orderdf is not None:
+    # Check for entries not in the processed set
+            new_entries = df[~df['order_id'].isin(processed_set)]
+            if not new_entries.empty:
+                print("New entries found:", new_entries)
+                # Add new IDs to the set
+                processed_set.update(new_entries['order_id'])
+                return True
+        else:
+            pass
 
-    
+
+    def take_profit(self):
+        pos = self.Get_Positions(139)
+        new_entry = self.check_for_new_entries(df=self.orderdf,processed_set=self.processed_ids)
+        entry_price = pos["result"]["entry_price"]
+        if entry_price is not None:
+            if new_entry is True:
+                print("HEllO")
+                # Assuming self.orderdf is properly initialized and contains 'side' column
+                last_side = self.orderdf["side"].iloc[-1].upper() 
+                     # Convert to upper case to handle case variations
+                print("The Last side ",last_side)
+                if last_side == 'BUY':
+                        self.place_order(side='sell', qty=self.half_qty, product_id=139, order_type='limit_order', price=self.orderdf["Take_profit"].iloc[-1])
+                        print("Placing the BUY side Take profit")
+                elif last_side == 'SELL':
+                        print(self.half_qty)
+                        self.place_order(side='buy', qty=self.half_qty, product_id=139, order_type='limit_order', price=self.orderdf["Take_profit"].iloc[-1])
+                        print("Placing the SELL side Take profit")
+            else:
+                pass
+
     
     def Strategy(self,close_data): 
 
         self.finaldf['Diff'] = abs(self.finaldf['EMA'] - self.finaldf['SMA'])       
         last_index = self.finaldf.index[-3]
-        start_index = max(0, last_index - 4)
+        start_index = max(0, last_index - 7)
         self.finaldf.to_excel('EMA&SMA.xlsx')
-        if (self.finaldf['Diff'].iloc[start_index:last_index + 1] < 50).any():
+        if (self.finaldf['Diff'].iloc[start_index:last_index + 1] < 20).any():
             self.pre5diff = True
             #print (self.pre5diff)                                                             #edited
         current_price = int(close_data)
         time_stamp = self.livedf['candel_start'].iloc[-1]
-        diff = abs(self.livedf['current_SMA'].iloc[-1] - self.livedf['current_EMA'].iloc[-1]) 
+        self.livedf['diff'] = abs(self.livedf['current_SMA'].iloc[-1] - self.livedf['current_EMA'].iloc[-1]) 
 
-        print(self.livedf.iloc[-1])             
+        # print(self.livedf.iloc[-1])             
 
-           
+        # print(len(self.livedf))
+        # print(len(self.historydf))
+        # print(len(self.finaldf) )
         if len(self.livedf) >= 5 and len(self.historydf) >= 5 and len(self.finaldf) >= 5:
 
             if(self.pre5diff == True):
 
-                if(diff >= 100 and diff <=120):
+                if(self.livedf['diff'].iloc[-1] >= 50 and self.livedf['diff'].iloc[-1] <=70):
 
                     if (self.livedf['current_EMA'].iloc[-1] > self.livedf['current_SMA'].iloc[-1]):
 
@@ -392,8 +429,8 @@ class Delat():
                         print("##################")
                         self.signal_type = 'buy'                                                        #need edit in the stratagy
                         self.entry = float(self.livedf['close'].iloc[-1])
-                        self.takeprofit =  self.entry + 500
-                        self.stoploss = self.entry - 500
+                        self.takeprofit =  self.entry + 100
+                        self.stoploss = self.entry - 100
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
 
@@ -402,14 +439,18 @@ class Delat():
                        
                         # Buy order placement
                         if pos["result"]["entry_price"] is None:
-                            responce = self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
-                            self.add_to_df(responce)
-                            self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price=self.takeprofit)
+                            responce = self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=current_price,stop_loss=self.stoploss)
+                            self.add_to_df(responce,self.takeprofit)
+
+                            res= self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price=self.takeprofit)
+                            print(res)
                             print("placing order two of take profit BUY ")
 
-                        elif  self.orderdf["side"].iloc[-1] != self.signal_type:
+                        elif self.orderdf["side"].iloc[-1] != self.signal_type:
                             self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
-                            self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
+                            responce1=self.place_bracket_order(side='buy',qty=self.qty,product_id=139, price=current_price, stop_loss=self.stoploss)
+                            self.add_to_df(responce1,self.takeprofit)
+
                             self.place_order(side='sell', qty=self.half_qty , product_id=139, order_type='limit_order',price=self.takeprofit)
 
                         else:
@@ -431,25 +472,30 @@ class Delat():
                         print("##################")
                         self.signal_type = 'sell'
                         self.entry = float(self.livedf['close'].iloc[-1])
-                        self.takeprofit =  self.entry - 500
-                        self.stoploss = self.entry + 500
+                        self.takeprofit =  self.entry - 100
+                        self.stoploss = self.entry + 100
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
                         Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
                         pos= self.Get_Positions(139)
                         # sell order place
                         if pos["result"]["entry_price"] is None:
-                            responce = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
-                            self.add_to_df(responce)
-                            self.place_order(side='buy', qty=self.half_qty , product_id=139,order_type ='limit_order', price=self.takeprofit)
+                            responce = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=current_price,stop_loss=self.stoploss)
+                            self.add_to_df(responce,self.takeprofit)
+
+                            res= self.place_order(side='buy',qty=self.half_qty,product_id=139,order_type='limit_order',price=self.takeprofit)
+                            print(res)
                             print("placing order two of take profit SELL")
                         elif  self.orderdf["side"].iloc[-1] != self.signal_type:
                             self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
-                            self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
-                            self.place_order(side='buy', qty=self.half_qty , product_id=139,order_type ='limit_order', price=self.takeprofit)
+                            responce1 = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=current_price,stop_loss=self.stoploss)
+                            self.add_to_df(responce1,self.takeprofit)
+
+                            # self.place_order(side='buy', qty=self.half_qty , product_id=139,order_type ='limit_order', price=self.takeprofit)
                     print("trade taken after 100 diff ")
+
           
-            elif (diff <= 5):                                                                         #edited
+            elif (self.livedf['diff'].iloc[-1]  <= 5):                                                                        #edited
                         # crossdown Strategy  
                 if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
                     if (self.finaldf['EMA'].iloc[-3] > self.finaldf['SMA'].iloc[-3]):
@@ -458,25 +504,26 @@ class Delat():
                         print("##################")
                         self.signal_type = 'sell'
                         self.entry = float(self.livedf['close'].iloc[-1])
-                        self.takeprofit =  self.entry - 500
-                        self.stoploss = self.entry + 500
+                        self.takeprofit =  self.entry - 100
+                        self.stoploss = self.entry + 100
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
                         Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)    
                         pos= self.Get_Positions(139)
-
                         if pos["result"]["entry_price"] is None:
-                            responce = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
-                            self.add_to_df(responce)
-                            self.place_order(side='buy', qty=self.half_qty , product_id=139,order_type='limit_order', price=self.takeprofit)
+                            responce = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=current_price,stop_loss=self.stoploss)
+                            self.add_to_df(responce,self.take_profit)
+
+                            res= self.place_order(side='buy',qty=self.half_qty,product_id=139,order_type='limit_order',price=self.takeprofit)
+                            print(res)
                             print("placing order two of take profit SELL ")
                         elif  self.orderdf["side"].iloc[-1]!= self.signal_type:
                             self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
-                            self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
+                            responce1 = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,price=current_price,stop_loss=self.stoploss)
+                            self.add_to_df(responce1,self.takeprofit)
+
                             self.place_order(side='buy', qty=self.half_qty , product_id=139,order_type='limit_order', price=self.takeprofit)
-                                
-                            
-                            
+
 
                     # crossup Strategy    
                 if not pd.isna(self.livedf['current_EMA'].iloc[-2]) and not pd.isna(self.livedf['current_SMA'].iloc[-2]):
@@ -486,8 +533,8 @@ class Delat():
                             print("##################")
                             self.signal_type = 'buy'
                             self.entry = float(self.livedf['close'].iloc[-1])
-                            self.takeprofit =  self.entry + 500
-                            self.stoploss = self.entry - 500
+                            self.takeprofit =  self.entry + 100
+                            self.stoploss = self.entry - 100
                             print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                             print(f"The entry price is {self.entry}")
                             Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
@@ -495,17 +542,22 @@ class Delat():
                             pos= self.Get_Positions(139)
                             # Buy order placement
                             if pos["result"]["entry_price"] is None:
-                                responce = self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
-                                self.add_to_df(responce)
-                                self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price=self.takeprofit)
+                                responce = self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=current_price,stop_loss=self.stoploss)
+                                self.add_to_df(responce,self.takeprofit)
+
+                                res= self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price=self.takeprofit)
+                                print("this is responce",res)
                                 print("placing order two of take profit  BUY ")
                             elif self.orderdf["side"].iloc[-1]!= self.signal_type:
                                 self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
-                                self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=self.entry,stop_loss=self.stoploss)
+                                responce1=self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,price=current_price,stop_loss=self.stoploss)
+                                self.add_to_df(responce1,self.takeprofit)
+
                                 self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price=self.takeprofit)
                                 
-                print("trade taken while crossing ")        
-
+                print("trade taken while crossing ") 
+        # self.take_profit()
+             
 
     
     def calculate_ema(self, prices, period):
@@ -550,6 +602,7 @@ class Delat():
 
 
     def Update_data(self,data):
+
         if data['close'] is None or data['candle_start_time'] is None:
             print("Warning: close or candle_start_time value is None. Skipping Update_data.")
             return
@@ -598,6 +651,8 @@ class Delat():
         except ValueError as e:
             print(f"Error converting data types: {e}")
             return
+        
+
     def send_heartbeat(self,ws):
         heartbeat={
         "type": "enable_heartbeat"
@@ -615,9 +670,12 @@ class Delat():
             print(f"Attempting to reconnect, attempt {self.reconnect_attempts + 1}")
             time.sleep(self.reconnect_delay)  # Wait before attempting to reconnect
             self.reconnect_attempts += 1  # Increment the reconnection attempt counter
-
+            self.Add_IP(email="ajay17joe@gmail.com",password="Rhino1499#",mfa='ALUM267K6BMUUPYU')
+            pid= self.get_product_id('BTCUSDT')
+            self.Get_wallet_info()
+            self.set_Leverage(pid,50)
             self.History()
-            self.live_data()  # Attempt to reconnect
+            self.live_data()# Attempt to reconnect
         else:
             print("Maximum reconnection attempts reached. Not attempting to reconnect.")
 
@@ -656,42 +714,53 @@ class Delat():
             "type": "subscribe",
             "payload": {    
                 "channels": [
-                    {"name": "candlestick_15m", "symbols": ['BTCUSDT']},
+                    {"name": "candlestick_1m", "symbols": ['BTCUSDT']},
                 ]
             }
         }
         ws.send(json.dumps(subscribe_msg))
         self.send_heartbeat(ws)
 
-    def Add_IP(self,email, password,mfa):
-        hostname = socket.gethostname()
-        ipv4 = socket.gethostbyname(hostname)
-        ipv6 = socket.getaddrinfo(hostname,0,socket.AF_INET6)[1][4][0]
-        topt = pyotp.TOTP(mfa).now()
-
-        method = 'POST'
-        url = 'http://cdn.deltaex.org/v2/api_keys/whitelist_ip'
-        endpoint = '/v2/api_keys/whitelist_ip'
-        parms  = {
-            "email":email,
-            "password": password,
-            "mfa_code": topt,
-            "api_key": self.api_key,
-            "ip_addresses":[ipv6,ipv4]
-        }
-        paylord = json.dumps(parms)
-        headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json' 
-        }
-        response = requests.post(url=url,data=paylord,headers=headers)
-        print(response.status_code)
-        print(response.text)
-
-
     def live_data(self):
       ws = websocket.WebSocketApp('wss://socket.delta.exchange', on_open=self.on_open, on_message=self.on_message, on_error=self.on_error, on_close=self.on_close)
       ws.run_forever()
+
+    def Add_IP(self,email, password,mfa):
+        hostname = socket.gethostname()
+        ipv4 = socket.gethostbyname(hostname)
+        # ipv6 = socket.getaddrinfo(hostname,0,socket.AF_INET6)[1][4][0]
+        topt = pyotp.TOTP(mfa)
+        otp = topt.now()
+        get_info = self.Get_wallet_info()
+        ip_to_add = None
+        print(get_info)
+        if get_info['success'] is True :
+            pass
+        else:
+            ip_to_add = get_info["error"]["client_ip"]
+        print(topt.verify(otp))
+        print(otp)
+        
+        url = 'http://cdn.deltaex.org/v2/api_keys/whitelist_ip'
+        parms  = {
+                "email":email,
+                "password": password,
+                "mfa_code": otp,
+                "api_key": self.api_key,
+                "ip_addresses":[ip_to_add]
+            }
+        print(parms)
+        paylord = json.dumps(parms)
+        headers = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json' 
+            }
+        if topt.verify(otp):
+            response = requests.post(url=url,data=paylord,headers=headers)
+            print(response.status_code)
+            print(response.text)
+        else:
+            self.Add_IP(email="ajay17joe@gmail.com",password="Rhino1499#",mfa='ALUM267K6BMUUPYU')
 
 # api_key = 'VraFQTfHWk1w7Id1uC1pJvyKQ5AWy5'
 # api_secret = 'XJofp39iR4p7092qkzJdH9VPmoZmHtWv2x0huuJWscPerHtGqcf2Uo996JMj'
@@ -703,15 +772,40 @@ api_key = 'PifFnRLv7RINsedJ0UyhWtfWj6qNLL'
 api_secret = 'o27aiNsPFuboGmiSqYxIq6CbgkDliDFY2krX2H7SIRK3Smlv86uFNGF1CblC'
 
 
+def get_symbol_price(symbol):
+    headers = {
+        'Accept': 'application/json',
+    }
+
+    r = requests.get('https://api.delta.exchange/v2/tickers', params={}, headers=headers)
+    r = r.json()
+
+    try:
+        r = r['result']
+    except:
+        print('Price retrieval error')
+        return get_symbol_price(symbol)  # Recursive call to try again
+
+    symbol_price = next((i['close'] for i in r if i['symbol'] == symbol.upper()), None)
+
+    if symbol_price is None:
+        print(f"Could not find price for symbol: {symbol}")
+        return None
+
+    return symbol_price
 
 delta = Delat(api_key,api_secret,25)
+delta.Add_IP(email="ajay17joe@gmail.com",password="Rhino1499#",mfa='ALUM267K6BMUUPYU')
+pid= delta.get_product_id('BTCUSDT')
+delta.Get_wallet_info()
+delta.set_Leverage(pid,50)
+delta.History()
+delta.live_data()
+# symbol = 'BTCUSDT'
+# ltp = get_symbol_price(symbol)
 
-# pid= delta.get_product_id('BTCUSDT')
-# delta.Get_wallet_info()
-# delta.set_Leverage(pid,50)
-# delta.History()
-# delta.live_data()
-
-delta.Add_IP(email="ajay17joe@gmail.com",password="Rhino1499#",mfa='6BPJD6C73KXKMRII')
+# responce = {"meta":{},"result":{"cancellation_reason":None,"order_type":"limit_order","bracket_take_profit_price":None,"bracket_order":None,"reduce_only":"false","bracket_trail_amount":None,"side":"sell","stop_price":None,"bracket_stop_loss_limit_price":"63388","state":"closed","time_in_force":"gtc","unfilled_size":0,"quote_size":None,"client_order_id":None,"id":3493626021,"user_id":99288206,"bracket_take_profit_limit_price":None,"average_fill_price":"63288","mmp":"disabled","stop_order_type":None,"commission":"0","bracket_stop_loss_price":"63388","created_at":"2024-04-30T06:04:03.328135Z","paid_commission":"0.0759456","close_on_trigger":"false","product_id":139,"size":2,"limit_price":"63288","meta_data":{"cashflow":"0","ip":"2001:4490:4c35:ebb5:1d7e:4f35:38ba:4b17","otc":"False","pnl":"0","source":"api"},"product_symbol":"BTCUSDT","updated_at":"2024-04-30T06:04:03.559555Z","trail_amount":None,"stop_trigger_method":None},"success":"true"} 
+# delta.add_to_df(responce,ltp-100)
+# delta.take_profit()
 
 

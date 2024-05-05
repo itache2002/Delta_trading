@@ -288,7 +288,7 @@ class Delat():
         print(response.text)
 
 
-    def place_order(self,side, qty, product_id, order_type="market_order", price=None):
+    def place_order(self,side, qty, product_id, order_type, price=None):
         method = 'POST'
         url = "https://api.delta.exchange/v2/orders"
         endpoint = "/v2/orders"
@@ -728,11 +728,12 @@ symbol = 'BTCUSDT'
 ltp = get_symbol_price(symbol)
 delta.Get_Positions(139)
 
-# responce=delta.place_bracket_order(side='sell',qty=2,product_id=pid,price=ltp,stop_loss=ltp+500)
-# delta.place_order(side='buy',qty=1,product_id=pid,order_type='limit_order',price=ltp-500)
+# responce=delta.place_bracket_order(side='buy',qty=2,product_id=pid,price=ltp,stop_loss=ltp-100)
+# # responce=delta.place_order(side='buy',qty=1,product_id=pid,order_type='limit_order',price=ltp-500)
 # print("this is the reponce ",responce)
 
 # delta.add_to_df(responce)
+
 
 delta.close_all_positions(True,True,99288206)
 

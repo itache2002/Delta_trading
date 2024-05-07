@@ -45,7 +45,8 @@ class Delat():
         self.orderdf = None
         self.df_Data = ()
         self.processed_ids = set()
-        self.take_vale = 100
+        self.take_vale = 500
+        self.stop_vale = 500
 
 
 
@@ -54,7 +55,7 @@ class Delat():
         last_100_candel = current_timestamp - 90000
 
         params = {
-            'resolution': '1m',
+            'resolution': '15m',
             'symbol': 'BTCUSDT',
             'start':last_100_candel, 
             'end': current_timestamp   
@@ -402,10 +403,10 @@ class Delat():
     def Strategy(self,close_data): 
 
         self.finaldf['Diff'] = abs(self.finaldf['EMA'] - self.finaldf['SMA'])       
-        last_index = self.finaldf.index[-3]
+        last_index = self.finaldf.index[-2]
         start_index = max(0, last_index - 7)
         self.finaldf.to_excel('EMA&SMA.xlsx')
-        if (self.finaldf['Diff'].iloc[start_index:last_index + 1] < 20).any():
+        if (self.finaldf['Diff'].iloc[start_index:last_index + 1] < 50).any():
             self.pre5diff = True
             #print (self.pre5diff)                                                             #edited
         current_price = int(close_data)
@@ -421,7 +422,7 @@ class Delat():
 
             if(self.pre5diff == True):
 
-                if(self.livedf['diff'].iloc[-1] >= 50 and self.livedf['diff'].iloc[-1] <=70):
+                if(self.livedf['diff'].iloc[-1] >= 100 and self.livedf['diff'].iloc[-1] <=120):
 
                     if (self.livedf['current_EMA'].iloc[-1] > self.livedf['current_SMA'].iloc[-1]):
 
@@ -430,7 +431,7 @@ class Delat():
                         print("##################")
                         self.signal_type = 'buy'                                                        #need edit in the stratagy
                         self.entry = float(self.livedf['close'].iloc[-1])
-                        self.stoploss = self.entry - 100
+                        self.stoploss = self.entry - self.stop_vale
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
 
@@ -441,7 +442,6 @@ class Delat():
                         if pos["result"]["entry_price"] is None:
                             responce = self.place_bracket_order(side='buy',qty=self.qty, product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
                             takeprofit =float(responce["result"]["average_fill_price"]) + self.take_vale
-                            print(takeprofit)
                             self.add_to_df(responce,takeprofit)
                             res= self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price=takeprofit)
                     
@@ -451,9 +451,8 @@ class Delat():
                         elif self.orderdf["side"].iloc[-1] != self.signal_type:
                             self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
                             responce = self.place_bracket_order(side='buy',qty=self.qty, product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
-                
+                        
                             takeprofit =float(responce["result"]["average_fill_price"]) + self.take_vale
-                            print(takeprofit)
                             self.add_to_df(responce1,takeprofit)
 
                             self.place_order(side='sell', qty=self.half_qty , product_id=139, order_type='limit_order',price=takeprofit)
@@ -477,8 +476,8 @@ class Delat():
                         print("##################")
                         self.signal_type = 'sell'
                         self.entry = float(self.livedf['close'].iloc[-1])
-                        self.takeprofit =  self.entry - 100
-                        self.stoploss = self.entry + 100
+                        self.takeprofit =  self.entry - self.take_vale
+                        self.stoploss = self.entry + self.stop_vale
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
                         Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
@@ -488,7 +487,6 @@ class Delat():
                             responce= self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
 
                             takeprofit =float(responce["result"]["average_fill_price"]) - self.take_vale
-                            print(takeprofit)
                             self.add_to_df(responce,takeprofit)
 
                             self.place_order(side='buy',qty=self.half_qty,product_id=139,order_type='limit_order',price=takeprofit)
@@ -498,7 +496,6 @@ class Delat():
                             self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
                             responce= self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
                             takeprofit =float(responce["result"]["average_fill_price"]) - self.take_vale
-                            print(takeprofit)
                             self.add_to_df(responce1,takeprofit)
                             self.place_order(side='buy', qty=self.half_qty , product_id=139,order_type ='limit_order', price=takeprofit)
                     print("trade taken after 100 diff ")
@@ -513,8 +510,8 @@ class Delat():
                         print("##################")
                         self.signal_type = 'sell'
                         self.entry = float(self.livedf['close'].iloc[-1])
-                        self.takeprofit =  self.entry - 100
-                        self.stoploss = self.entry + 100
+                        self.takeprofit =  self.entry - self.take_vale
+                        self.stoploss = self.entry + self.stop_vale
                         print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                         print(f"The entry price is {self.entry}")
                         Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)    
@@ -522,7 +519,6 @@ class Delat():
                         if pos["result"]["entry_price"] is None:
                             responce1 = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
                             takeprofit =float(responce1["result"]["average_fill_price"]) - self.take_vale
-                            print(takeprofit)
                             self.add_to_df(responce,takeprofit)
                             self.place_order(side='buy',qty=self.half_qty,product_id=139,order_type='limit_order',price=takeprofit)
         
@@ -533,7 +529,6 @@ class Delat():
                             responce1 = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
 
                             takeprofit = float(responce1["result"]["average_fill_price"]) - self.take_vale
-                            print(takeprofit)
                             self.add_to_df(responce1,takeprofit)
                             self.place_order(side='buy', qty=self.half_qty , product_id=139,order_type='limit_order', price=takeprofit)
 
@@ -546,7 +541,7 @@ class Delat():
                             print("##################")
                             self.signal_type = 'buy'
                             self.entry = float(self.livedf['close'].iloc[-1])
-                            self.stoploss = self.entry - 100
+                            self.stoploss = self.entry - self.stop_vale
                             print(f"The current timestamp{self.livedf['candel_start'].iloc[-1]}")
                             print(f"The entry price is {self.entry}")
                             Duplicate= self.add_to_excel(time_stamp,self.entry,self.signal_type)
@@ -556,7 +551,6 @@ class Delat():
                             if pos["result"]["entry_price"] is None:
                                 responce = self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
                                 takeprofit =float(responce["result"]["average_fill_price"]) + self.take_vale
-                                print(takeprofit)
 
                                 self.add_to_df(responce,takeprofit)
                                 res= self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price = takeprofit)
@@ -567,7 +561,6 @@ class Delat():
                                 self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
                                 responce1=self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
                                 takeprofit =float(responce["result"]["average_fill_price"]) + self.take_vale
-                                print(takeprofit)
                                 self.add_to_df(responce1,takeprofit)
                                 self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price=takeprofit)
                                 
@@ -730,7 +723,7 @@ class Delat():
             "type": "subscribe",
             "payload": {    
                 "channels": [
-                    {"name": "candlestick_1m", "symbols": ['BTCUSDT']},
+                    {"name": "candlestick_15m", "symbols": ['BTCUSDT']},
                 ]
             }
         }

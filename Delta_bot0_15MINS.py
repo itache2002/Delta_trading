@@ -117,7 +117,9 @@ class Delat():
             self.orderdf = new_order
         else:
             self.orderdf = pd.concat([self.orderdf, new_order], ignore_index=True)
-            self.orderdf.to_excel("orders_details.xlsx")
+            print("The data added done")
+        self.orderdf.to_excel("orders_details.xlsx")
+        print(self.orderdf.to_string())
 
     def generate_signature(self,secret, message):
         message = bytes(message, 'utf-8')
@@ -453,7 +455,7 @@ class Delat():
                             responce = self.place_bracket_order(side='buy',qty=self.qty, product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
                         
                             takeprofit =float(responce["result"]["average_fill_price"]) + self.take_vale
-                            self.add_to_df(responce1,takeprofit)
+                            self.add_to_df(responce,takeprofit)
 
                             self.place_order(side='sell', qty=self.half_qty , product_id=139, order_type='limit_order',price=takeprofit)
 
@@ -492,11 +494,12 @@ class Delat():
                             self.place_order(side='buy',qty=self.half_qty,product_id=139,order_type='limit_order',price=takeprofit)
             
                             print("placing order two of take profit SELL")
+
                         elif  self.orderdf["side"].iloc[-1] != self.signal_type:
                             self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
                             responce= self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
                             takeprofit =float(responce["result"]["average_fill_price"]) - self.take_vale
-                            self.add_to_df(responce1,takeprofit)
+                            self.add_to_df(responce,takeprofit)
                             self.place_order(side='buy', qty=self.half_qty , product_id=139,order_type ='limit_order', price=takeprofit)
                     print("trade taken after 100 diff ")
 
@@ -519,7 +522,7 @@ class Delat():
                         if pos["result"]["entry_price"] is None:
                             responce1 = self.place_bracket_order(side='sell',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
                             takeprofit =float(responce1["result"]["average_fill_price"]) - self.take_vale
-                            self.add_to_df(responce,takeprofit)
+                            self.add_to_df(responce1,takeprofit)
                             self.place_order(side='buy',qty=self.half_qty,product_id=139,order_type='limit_order',price=takeprofit)
         
                             print("placing order two of take profit SELL ")
@@ -560,7 +563,7 @@ class Delat():
                             elif self.orderdf["side"].iloc[-1]!= self.signal_type:
                                 self.close_all_positions(close_all_portfolio=True,user_id=self.userid)
                                 responce1=self.place_bracket_order(side='buy',qty=self.qty,product_id=139 ,order_type="market_order",stop_loss=self.stoploss)
-                                takeprofit =float(responce["result"]["average_fill_price"]) + self.take_vale
+                                takeprofit =float(responce1["result"]["average_fill_price"]) + self.take_vale
                                 self.add_to_df(responce1,takeprofit)
                                 self.place_order(side='sell',qty=self.half_qty,product_id=139,order_type='limit_order',price=takeprofit)
                                 

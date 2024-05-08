@@ -105,7 +105,6 @@ class Delat():
             "commission":order_data.get("commission",""),
             "Entry_price" :order_data.get("average_fill_price",""),
             "Take_profit":take_profit
-    
         }
         self.df_Data= tuple(filter_data.values())
         print(self.df_Data)
@@ -119,8 +118,13 @@ class Delat():
             self.orderdf = pd.concat([self.orderdf, new_order], ignore_index=True)
             print("The data added done")
         self.orderdf.to_excel("orders_details.xlsx")
-        print(self.orderdf.to_string())
+        print(self.orderdf)
 
+    def read_excel_file(self):
+        data = pd.read_excel("orders_details.xlsx")
+        get_last_data = data.iloc[-1]
+        return get_last_data
+    
     def generate_signature(self,secret, message):
         message = bytes(message, 'utf-8')
         secret = bytes(secret, 'utf-8')
@@ -670,6 +674,7 @@ class Delat():
         "type": "enable_heartbeat"
         }
         ws.send(json.dumps(heartbeat))
+        self.Add_IP(email="ajay17joe@gmail.com",password="Rhino1499#",mfa='ALUM267K6BMUUPYU')
          
     def on_message(self,ws, message):
         data = json.loads(message)
@@ -750,29 +755,29 @@ class Delat():
             pass
         else:
             ip_to_add = get_info["error"]["client_ip"]
-        print(topt.verify(otp))
-        print(otp)
-        
-        url = 'http://cdn.deltaex.org/v2/api_keys/whitelist_ip'
-        parms  = {
-                "email":email,
-                "password": password,
-                "mfa_code": otp,
-                "api_key": self.api_key,
-                "ip_addresses":[ip_to_add]
-            }
-        print(parms)
-        paylord = json.dumps(parms)
-        headers = {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json' 
-            }
-        if topt.verify(otp):
-            response = requests.post(url=url,data=paylord,headers=headers)
-            print(response.status_code)
-            print(response.text)
-        else:
-            self.Add_IP(email="ajay17joe@gmail.com",password="Rhino1499#",mfa='ALUM267K6BMUUPYU')
+            print(topt.verify(otp))
+            print(otp)
+            
+            url = 'http://cdn.deltaex.org/v2/api_keys/whitelist_ip'
+            parms  = {
+                    "email":email,
+                    "password": password,
+                    "mfa_code": otp,
+                    "api_key": self.api_key,
+                    "ip_addresses":[ip_to_add]
+                }
+            print(parms)
+            paylord = json.dumps(parms)
+            headers = {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json' 
+                }
+            if topt.verify(otp):
+                response = requests.post(url=url,data=paylord,headers=headers)
+                print(response.status_code)
+                print(response.text)
+            else:
+                self.Add_IP(email="ajay17joe@gmail.com",password="Rhino1499#",mfa='ALUM267K6BMUUPYU')
 
 # api_key = 'VraFQTfHWk1w7Id1uC1pJvyKQ5AWy5'
 # api_secret = 'XJofp39iR4p7092qkzJdH9VPmoZmHtWv2x0huuJWscPerHtGqcf2Uo996JMj'
@@ -809,12 +814,12 @@ def get_symbol_price(symbol):
 symbol = 'BTCUSDT'
 delta = Delat(api_key,api_secret,25)
 delta.Add_IP(email="ajay17joe@gmail.com",password="Rhino1499#",mfa='ALUM267K6BMUUPYU')
-pid= delta.get_product_id(symbol)
-delta.Get_wallet_info()
-delta.set_Leverage(pid,50)
-delta.History()
-delta.live_data()
-
+# pid= delta.get_product_id(symbol)
+# delta.Get_wallet_info()
+# delta.set_Leverage(pid,50)
+# delta.History()
+# delta.live_data()
+delta.read_excel_file()
 
 
 # responce = {"meta":{},"result":{"cancellation_reason":None,"order_type":"limit_order","bracket_take_profit_price":None,"bracket_order":None,"reduce_only":"false","bracket_trail_amount":None,"side":"sell","stop_price":None,"bracket_stop_loss_limit_price":"63388","state":"closed","time_in_force":"gtc","unfilled_size":0,"quote_size":None,"client_order_id":None,"id":3493626021,"user_id":99288206,"bracket_take_profit_limit_price":None,"average_fill_price":"63288","mmp":"disabled","stop_order_type":None,"commission":"0","bracket_stop_loss_price":"63388","created_at":"2024-04-30T06:04:03.328135Z","paid_commission":"0.0759456","close_on_trigger":"false","product_id":139,"size":2,"limit_price":"63288","meta_data":{"cashflow":"0","ip":"2001:4490:4c35:ebb5:1d7e:4f35:38ba:4b17","otc":"False","pnl":"0","source":"api"},"product_symbol":"BTCUSDT","updated_at":"2024-04-30T06:04:03.559555Z","trail_amount":None,"stop_trigger_method":None},"success":"true"} 
